@@ -341,14 +341,14 @@ input[type=range]::-webkit-slider-thumb{
           <div class="elo-label">ELO</div>
           <div class="elo-val" id="elo-val">1500</div>
         </div>
-        <input type="range" id="elo-slider" min="600" max="3200" step="100" value="1500"
+        <input type="range" id="elo-slider" min="600" max="3600" step="100" value="1500"
           oninput="updateElo(this.value)"/>
         <div class="elo-ticks">
           <span class="elo-tick">600</span>
           <span class="elo-tick">Principiante</span>
           <span class="elo-tick" style="color:var(--gold)">1500</span>
           <span class="elo-tick">Maestro</span>
-          <span class="elo-tick">3200</span>
+          <span class="elo-tick">3600</span>
         </div>
       </div>
 
@@ -617,7 +617,7 @@ async function analyze(){
 
   const fen=boardToFen(board,turn,castle,ep,halfmove,fullmove);
   // More time for higher ELO
-  const movetime=sfElo<1000?50:sfElo<1800?100:sfElo<2500?200:350;
+  const movetime=sfElo<1000?50:sfElo<1800?100:sfElo<2500?200:sfElo<3000?350:500;
   const{best,lines}=await askStockfish(fen,movetime);
   if(token!==analysisToken)return;
 
