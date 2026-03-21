@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Chess Master · Stockfish</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --sq-l:#f0d9b5; --sq-d:#b58863;
+  --sq-lm-l:#cdd16a; --sq-lm-d:#aba23a;
+  --bg:#0e0b08; --s1:#181210; --s2:#211810;
+  --bdr:#3a2a1a; --bdr2:#52392a;
+  --gold:#c8952e; --gold2:#e8b84b; --gold3:#f8d878;
+  --txt:#ede0c8; --dim:#7a6040;
+  --grn:#4dde72; --ylw:#f0c030; --blu:#5aa0f0;
+  --red:#d85050; --chk:#f07030;
+  --SZ:68px;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);overflow-x:hidden;}
+body{font-family:'Cormorant Garamond',serif;}
+
+/* ─ layout ─ */
+#app{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:28px 12px 36px;
+  background:
+    radial-gradient(ellipse 70% 40% at 10% 5%, rgba(200,149,46,.08) 0%,transparent 55%),
+    radial-gradient(ellipse 50% 60% at 90% 95%, rgba(77,222,114,.05) 0%,transparent 55%);
+}
+
+/* ─ header ─ */
+header{text-align:center;margin-bottom:30px;}
+.logo{
+  font-family:'Josefin Sans',sans-serif;
+  font-size:1.85rem;font-weight:600;letter-spacing:.28em;
+  background:linear-gradient(120deg, var(--gold) 0%, var(--gold3) 45%, var(--gold) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 24px rgba(200,149,46,.4));
+}
+.logo-sub{
+  font-family:'Josefin Sans',sans-serif;font-size:.65rem;
+  letter-spacing:.5em;color:var(--dim);margin-top:4px;text-transform:uppercase;
+}
+
+/* ─ main ─ */
+main{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center;}
+
+/* ─ board ─ */
+.board-shell{display:flex;flex-direction:column;align-items:center;}
+.board-row{display:flex;}
+.ranks{display:flex;flex-direction:column;}
+.rlbl{
+  width:18px;height:var(--SZ);display:flex;align-items:center;justify-content:center;
+  font-family:'Josefin Sans',sans-serif;font-size:.58rem;color:var(--dim);
+}
+.files{display:flex;padding-left:18px;margin-top:3px;}
+.flbl{
+  width:var(--SZ);text-align:center;
+  font-family:'Josefin Sans',sans-serif;font-size:.58rem;color:var(--dim);
+}
+.board-wrap{position:relative;line-height:0;}
+#board{
+  display:grid;
+  grid-template-columns:repeat(8,var(--SZ));
+  grid-template-rows:repeat(8,var(--SZ));
+  border:2px solid var(--gold);
+  box-shadow:
+    0 0 0 1px rgba(200,149,46,.2),
+    0 0 80px rgba(200,149,46,.1),
+    0 20px 60px rgba(0,0,0,.8);
+}
+.sq{
+  width:var(--SZ);height:var(--SZ);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;user-select:none;
+}
+.sq.l{background:var(--sq-l);}.sq.d{background:var(--sq-d);}
+.sq.l:hover{filter:brightness(1.07);}.sq.d:hover{filter:brightness(1.1);}
+.sq.lm.l{background:var(--sq-lm-l);}.sq.lm.d{background:var(--sq-lm-d);}
+.sq.sel{outline:3px solid rgba(240,192,48,.9);outline-offset:-3px;}
+.sq.check-sq{background:#b83030!important;}
+.sq.best::before{
+  content:'';position:absolute;inset:2px;border-radius:2px;
+  border:2px solid rgba(77,222,114,.75);
+  box-shadow:inset 0 0 10px rgba(77,222,114,.15);
+  pointer-events:none;z-index:4;
+}
+.dot{
+  position:absolute;z-index:5;pointer-events:none;border-radius:50%;
+  background:rgba(77,222,114,.5);width:20px;height:20px;
+}
+.dot.cap{
+  width:calc(var(--SZ) - 6px);height:calc(var(--SZ) - 6px);
+  background:transparent;border-radius:3px;border:3px solid rgba(77,222,114,.65);
+}
+.piece{
+  font-size:44px;line-height:1;pointer-events:none;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.7));
+  transition:transform .1s;
+}
+.sq.sel .piece{transform:scale(1.1);}
+.piece.w{color:#f5ede0;}.piece.b{color:#180c04;}
+
+/* ─ arrows ─ */
+#arrows{
+  position:absolute;top:0;left:0;
+  width:calc(var(--SZ)*8);height:calc(var(--SZ)*8);
+  pointer-events:none;z-index:10;overflow:visible;
+}
+
+/* ─ panel ─ */
+.panel{width:278px;display:flex;flex-direction:column;gap:10px;}
+
+.card{
+  background:var(--s1);border:1px solid var(--bdr);border-radius:10px;
+  padding:14px 16px;
+}
+.ctitle{
+  font-family:'Josefin Sans',sans-serif;font-size:.62rem;letter-spacing:.14em;
+  color:var(--gold);text-transform:uppercase;
+  margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--bdr);
+}
+
+/* turn */
+.turn-row{display:flex;align-items:center;gap:12px;}
+.gem{
+  width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  border:2px solid var(--gold);transition:all .3s;
+}
+.gem.w{background:#f5ede0;box-shadow:0 0 10px rgba(245,237,224,.3);}
+.gem.b{background:#180c04;box-shadow:0 0 8px rgba(0,0,0,.6);}
+.tname{font-size:1.1rem;letter-spacing:.04em;}
+.tsub{font-family:'Josefin Sans',sans-serif;font-size:.68rem;color:var(--dim);margin-top:2px;letter-spacing:.06em;}
+
+/* status banner */
+.banner{
+  padding:8px 12px;border-radius:8px;text-align:center;
+  font-family:'Josefin Sans',sans-serif;font-size:.75rem;letter-spacing:.08em;display:none;
+}
+.banner.chk{display:block;background:rgba(240,112,48,.1);border:1px solid rgba(240,112,48,.3);color:var(--chk);}
+.banner.end{display:block;background:rgba(216,80,80,.1);border:1px solid rgba(216,80,80,.3);color:var(--red);}
+.banner.draw{display:block;background:rgba(200,149,46,.1);border:1px solid rgba(200,149,46,.3);color:var(--gold2);}
+
+/* elo slider */
+.elo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.elo-val{
+  font-size:1.4rem;font-weight:600;color:var(--gold2);letter-spacing:.04em;
+  min-width:60px;text-align:right;
+}
+.elo-label{font-family:'Josefin Sans',sans-serif;font-size:.65rem;color:var(--dim);letter-spacing:.1em;}
+input[type=range]{
+  width:100%;height:4px;border-radius:2px;
+  background:linear-gradient(90deg,var(--gold) 0%,var(--gold3) 100%);
+  outline:none;-webkit-appearance:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--gold2);border:2px solid var(--s1);
+  box-shadow:0 0 6px rgba(232,184,75,.5);cursor:pointer;
+}
+.elo-ticks{display:flex;justify-content:space-between;margin-top:4px;}
+.elo-tick{font-family:'Josefin Sans',sans-serif;font-size:.58rem;color:var(--dim);}
+
+/* engine status */
+.eng-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.eng-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s,box-shadow .3s;}
+.eng-dot.loading{background:#f0c030;box-shadow:0 0 6px rgba(240,192,48,.6);animation:pulse 1s infinite;}
+.eng-dot.ready{background:var(--grn);box-shadow:0 0 6px rgba(77,222,114,.7);}
+.eng-dot.error{background:var(--red);box-shadow:0 0 6px rgba(216,80,80,.6);}
+.eng-txt{font-family:'Josefin Sans',sans-serif;font-size:.68rem;color:var(--dim);letter-spacing:.04em;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* analysis */
+.mrow{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:7px 10px;border-radius:7px;margin-bottom:5px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);
+  animation:slideUp .2s ease both;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.mrank{font-family:'Josefin Sans',sans-serif;font-size:.6rem;color:var(--dim);padding-top:3px;width:14px;flex-shrink:0;}
+.msan{font-size:1.05rem;font-weight:600;letter-spacing:.02em;}
+.mmeta{font-family:'Josefin Sans',sans-serif;font-size:.65rem;color:var(--dim);margin-top:2px;letter-spacing:.04em;}
+.thinking{
+  display:flex;align-items:center;gap:8px;
+  color:var(--dim);font-style:italic;font-size:.9rem;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{display:inline-block;animation:spin .8s linear infinite;}
+
+/* eval */
+.eval-hdr{display:flex;justify-content:space-between;font-family:'Josefin Sans',sans-serif;font-size:.6rem;color:var(--dim);margin-bottom:5px;letter-spacing:.06em;}
+.eval-track{height:8px;border-radius:4px;background:#f0e8d8;border:1px solid var(--bdr);overflow:hidden;position:relative;}
+.eval-fill{position:absolute;left:0;top:0;bottom:0;background:#180c04;transition:width .6s ease;}
+.eval-num{font-family:'Josefin Sans',sans-serif;font-size:.78rem;text-align:center;margin-top:5px;color:var(--txt);letter-spacing:.06em;}
+
+/* history */
+.hist{max-height:110px;overflow-y:auto;font-size:.88rem;}
+.hist::-webkit-scrollbar{width:3px;}
+.hist::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px;}
+.hr{display:flex;gap:6px;margin-bottom:2px;}
+.hn{font-family:'Josefin Sans',sans-serif;font-size:.7rem;color:var(--dim);width:22px;flex-shrink:0;padding-top:2px;}
+.hw{flex:1;color:var(--txt);}
+.hb{flex:1;color:var(--dim);}
+
+/* buttons */
+.btn{
+  width:100%;padding:9px;cursor:pointer;border-radius:8px;
+  font-family:'Josefin Sans',sans-serif;font-size:.72rem;letter-spacing:.1em;
+  text-transform:uppercase;transition:all .18s;
+}
+.btn-g{border:1px solid var(--bdr2);background:rgba(200,149,46,.08);color:var(--gold2);}
+.btn-g:hover{background:rgba(200,149,46,.18);border-color:var(--gold);}
+.btn-g:disabled{opacity:.3;cursor:not-allowed;}
+.btn-r{border:1px solid rgba(216,80,80,.3);background:rgba(216,80,80,.07);color:var(--red);}
+.btn-r:hover{background:rgba(216,80,80,.16);}
+.btn-b{border:1px solid rgba(90,160,240,.3);background:rgba(90,160,240,.07);color:var(--blu);}
+.btn-b:hover{background:rgba(90,160,240,.16);}
+.rotate-icon{display:inline-block;transition:transform .4s ease;}
+.board-rotated .rotate-icon{transform:rotate(180deg);}
+
+/* promo */
+#promo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99;align-items:center;justify-content:center;}
+#promo.open{display:flex;}
+.pbox{background:var(--s2);border:2px solid var(--gold);border-radius:14px;padding:30px 36px;text-align:center;}
+.ptitle{font-size:1.2rem;color:var(--gold2);margin-bottom:18px;letter-spacing:.06em;}
+.ppieces{display:flex;gap:12px;}
+.pp{font-size:50px;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--bdr2);border-radius:10px;padding:8px 14px;transition:background .15s;}
+.pp:hover{background:rgba(200,149,46,.2);}
+
+@media(max-width:680px){
+  :root{--SZ:46px;}
+  .piece{font-size:28px;}
+  .panel{width:100%;}
+  .logo{font-size:1.3rem;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">♟ CHESS MASTER</div>
+    <div class="logo-sub">Powered by Stockfish 10</div>
+  </header>
+
+  <main>
+    <!-- BOARD -->
+    <div class="board-shell">
+      <div class="board-row">
+        <div class="ranks" id="ranks"></div>
+        <div>
+          <div class="board-wrap">
+            <div id="board"></div>
+            <svg id="arrows" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="a0" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+                  <path d="M0,0.5 L4.5,2.5 L0,4.5 Z" fill="#4dde72"/>
+                </marker>
+                <marker id="a1" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+                  <path d="M0,0.5 L4.5,2.5 L0,4.5 Z" fill="#f0c030"/>
+                </marker>
+                <marker id="a2" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+                  <path d="M0,0.5 L4.5,2.5 L0,4.5 Z" fill="#5aa0f0"/>
+                </marker>
+              </defs>
+            </svg>
+          </div>
+          <div class="files" id="files"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL -->
+    <div class="panel">
+
+      <!-- Turn -->
+      <div class="card">
+        <div class="turn-row">
+          <div class="gem w" id="gem"></div>
+          <div>
+            <div class="tname" id="tname">BLANCAS</div>
+            <div class="tsub" id="tsub">Tu turno</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="banner" id="banner"></div>
+
+      <!-- ELO -->
+      <div class="card">
+        <div class="ctitle">Nivel del motor</div>
+        <div class="elo-row">
+          <div class="elo-label">ELO</div>
+          <div class="elo-val" id="elo-val">1500</div>
+        </div>
+        <input type="range" id="elo-slider" min="600" max="3200" step="100" value="1500"
+          oninput="updateElo(this.value)"/>
+        <div class="elo-ticks">
+          <span class="elo-tick">600</span>
+          <span class="elo-tick">Principiante</span>
+          <span class="elo-tick" style="color:var(--gold)">1500</span>
+          <span class="elo-tick">Maestro</span>
+          <span class="elo-tick">3200</span>
+        </div>
+      </div>
+
+      <!-- Engine status + Analysis -->
+      <div class="card">
+        <div class="ctitle">Análisis · Stockfish</div>
+        <div class="eng-row">
+          <div class="eng-dot loading" id="edot"></div>
+          <div class="eng-txt" id="etxt">Cargando Stockfish…</div>
+          <button id="btn-retry" onclick="retryLoad()" style="display:none;margin-left:auto;padding:3px 10px;font-family:'Josefin Sans',sans-serif;font-size:.62rem;letter-spacing:.08em;background:rgba(200,149,46,.15);border:1px solid var(--gold);color:var(--gold2);border-radius:5px;cursor:pointer;">↻ Reintentar</button>
+        </div>
+        <div id="analysis">
+          <div class="thinking"><span class="spin">⚙</span>Esperando motor…</div>
+        </div>
+      </div>
+
+      <!-- Eval -->
+      <div class="card">
+        <div class="eval-hdr"><span>● Negras</span><span>Blancas ●</span></div>
+        <div class="eval-track"><div class="eval-fill" id="eval-fill" style="width:50%"></div></div>
+        <div class="eval-num" id="eval-num">—</div>
+      </div>
+
+      <!-- History -->
+      <div class="card">
+        <div class="ctitle">Historial</div>
+        <div class="hist" id="hist"></div>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <button class="btn btn-g" id="btn-undo" onclick="undoMove()" disabled>↩ Deshacer</button>
+        <button class="btn btn-b" id="btn-rotate" onclick="rotateBoard()">⇅ Rotar tablero</button>
+        <button class="btn btn-r" onclick="newGame()">↺ Nueva partida</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Promo -->
+<div id="promo">
+  <div class="pbox">
+    <div class="ptitle">Promoción de peón</div>
+    <div class="ppieces" id="ppieces"></div>
+  </div>
+</div>
+
+<!-- Stockfish will be loaded dynamically -->
+
+<script>
+// ════════════════════════════════════════
+// ENGINE CONSTANTS
+// ════════════════════════════════════════
+const wP=1,wN=2,wB=3,wR=4,wQ=5,wK=6,bP=9,bN=10,bB=11,bR=12,bQ=13,bK=14;
+const FILES='abcdefgh';
+const GLYPHS={1:'♙',2:'♘',3:'♗',4:'♖',5:'♕',6:'♔',9:'♟',10:'♞',11:'♝',12:'♜',13:'♛',14:'♚'};
+const KD=[-33,-31,-18,-14,14,18,31,33];
+const BD=[-17,-15,15,17];
+const RD=[-16,-1,1,16];
+const QD=[-17,-15,15,17,-16,-1,1,16];
+const GD=[-17,-15,15,17,-16,-1,1,16];
+const TC={2:'N',3:'B',4:'R',5:'Q',6:'K',10:'N',11:'B',12:'R',13:'Q',14:'K'};
+const AC=['#4dde72','#f0c030','#5aa0f0'];
+const AW=[5,4,3];
+
+// ════════════════════════════════════════
+// CHESS LOGIC (move gen, legal moves, FEN)
+// ════════════════════════════════════════
+const pc=p=>p===0?null:p<7?'w':'b';
+const sq2alg=s=>FILES[s&7]+((s>>4)+1);
+const alg2sq=s=>(parseInt(s[1])-1)*16+FILES.indexOf(s[0]);
+
+function initBoard(){
+  const b=new Array(128).fill(0);
+  [wR,wN,wB,wQ,wK,wB,wN,wR].forEach((p,c)=>{b[c]=p;b[16+c]=wP;b[96+c]=bP;b[112+c]=p+8;});
+  return b;
+}
+
+function genMoves(b,turn,ep,castle){
+  const mv=[],isW=turn==='w';
+  for(let sq=0;sq<128;sq++){
+    if(sq&0x88)continue;
+    const p=b[sq];if(!p||pc(p)!==turn)continue;
+    const t=p>8?p-8:p;
+    if(t===wP){
+      const dir=isW?16:-16,sR=isW?1:6,pR=isW?6:1,fw=sq+dir;
+      if(!(fw&0x88)&&!b[fw]){
+        if((sq>>4)===pR)(isW?[wQ,wR,wB,wN]:[bQ,bR,bB,bN]).forEach(pp=>mv.push({from:sq,to:fw,piece:p,cap:0,flags:4,promo:pp}));
+        else{mv.push({from:sq,to:fw,piece:p,cap:0,flags:0});if((sq>>4)===sR&&!b[fw+dir])mv.push({from:sq,to:fw+dir,piece:p,cap:0,flags:8});}
+      }
+      for(const dc of[-1,1]){
+        const at=fw+dc;if(at&0x88)continue;
+        if(b[at]&&pc(b[at])!==turn){
+          if((sq>>4)===pR)(isW?[wQ,wR,wB,wN]:[bQ,bR,bB,bN]).forEach(pp=>mv.push({from:sq,to:at,piece:p,cap:b[at],flags:4,promo:pp}));
+          else mv.push({from:sq,to:at,piece:p,cap:b[at],flags:0});
+        }
+        if(at===ep&&ep>=0)mv.push({from:sq,to:at,piece:p,cap:isW?bP:wP,flags:1});
+      }
+    }else if(t===wN){
+      KD.forEach(d=>{const t2=sq+d;if(!(t2&0x88)&&pc(b[t2])!==turn)mv.push({from:sq,to:t2,piece:p,cap:b[t2]||0,flags:0});});
+    }else if(t===wB||t===wR||t===wQ){
+      (t===wB?BD:t===wR?RD:QD).forEach(d=>{let t2=sq+d;while(!(t2&0x88)){if(pc(b[t2])===turn)break;mv.push({from:sq,to:t2,piece:p,cap:b[t2]||0,flags:0});if(b[t2])break;t2+=d;}});
+    }else if(t===wK){
+      GD.forEach(d=>{const t2=sq+d;if(!(t2&0x88)&&pc(b[t2])!==turn)mv.push({from:sq,to:t2,piece:p,cap:b[t2]||0,flags:0});});
+      const row=isW?0:7,ks=row*16+4;
+      if((isW?castle.wK:castle.bK)&&!b[ks+1]&&!b[ks+2]&&b[ks+3]===(isW?wR:bR))mv.push({from:ks,to:ks+2,piece:p,cap:0,flags:2,side:'K'});
+      if((isW?castle.wQ:castle.bQ)&&!b[ks-1]&&!b[ks-2]&&!b[ks-3]&&b[ks-4]===(isW?wR:bR))mv.push({from:ks,to:ks-2,piece:p,cap:0,flags:2,side:'Q'});
+    }
+  }
+  return mv;
+}
+
+function applyMove(b,mv,castle,ep){
+  const nb=b.slice(),nc={...castle};
+  nb[mv.to]=mv.flags===4?mv.promo:mv.piece;nb[mv.from]=0;
+  if(mv.flags===1)nb[mv.to+(mv.piece===wP?-16:16)]=0;
+  if(mv.flags===2){const r=mv.from>>4;mv.side==='K'?(nb[r*16+5]=nb[r*16+7],nb[r*16+7]=0):(nb[r*16+3]=nb[r*16+0],nb[r*16+0]=0);}
+  const nep=mv.flags===8?mv.to+(mv.piece===wP?-16:16):-1;
+  if(mv.piece===wK){nc.wK=false;nc.wQ=false;}if(mv.piece===bK){nc.bK=false;nc.bQ=false;}
+  if(mv.from===0)nc.wQ=false;if(mv.from===7)nc.wK=false;if(mv.from===112)nc.bQ=false;if(mv.from===119)nc.bK=false;
+  return{board:nb,castle:nc,ep:nep};
+}
+
+function isAtt(b,sq,by){
+  const byW=by==='w',pd=byW?-16:16;
+  for(const dc of[-1,1]){const a=sq+pd+dc;if(!(a&0x88)&&b[a]===(byW?wP:bP))return true;}
+  for(const d of KD){const t=sq+d;if(!(t&0x88)&&b[t]===(byW?wN:bN))return true;}
+  for(const d of BD){let t=sq+d;while(!(t&0x88)){const p=b[t];if(p){if(byW?(p===wB||p===wQ):(p===bB||p===bQ))return true;break;}t+=d;}}
+  for(const d of RD){let t=sq+d;while(!(t&0x88)){const p=b[t];if(p){if(byW?(p===wR||p===wQ):(p===bR||p===bQ))return true;break;}t+=d;}}
+  for(const d of GD){const t=sq+d;if(!(t&0x88)&&b[t]===(byW?wK:bK))return true;}
+  return false;
+}
+
+function findKing(b,turn){const k=turn==='w'?wK:bK;for(let i=0;i<128;i++)if(!(i&0x88)&&b[i]===k)return i;return -1;}
+function inCheck(b,turn){const k=findKing(b,turn);return k>=0&&isAtt(b,k,turn==='w'?'b':'w');}
+
+function legalMoves(b,turn,ep,castle){
+  return genMoves(b,turn,ep,castle).filter(mv=>{
+    if(mv.flags===2){
+      const mid=mv.from+(mv.side==='K'?1:-1);
+      const{board:mb}=applyMove(b,{...mv,to:mid,flags:0},castle,ep);
+      if(inCheck(b,turn)||inCheck(mb,turn))return false;
+    }
+    return !inCheck(applyMove(b,mv,castle,ep).board,turn);
+  });
+}
+
+function toSAN(mv,b,turn,ep,castle,legal){
+  if(mv.flags===2)return mv.side==='K'?'O-O':'O-O-O';
+  const type=mv.piece>8?mv.piece-8:mv.piece;let s='';
+  if(type!==wP){
+    s+=TC[type]||'';
+    const amb=legal.filter(m=>m!==mv&&m.piece===mv.piece&&m.to===mv.to&&m.from!==mv.from);
+    if(amb.length){if(amb.every(m=>(m.from&7)!==(mv.from&7)))s+=FILES[mv.from&7];else s+=((mv.from>>4)+1);}
+  }
+  if(mv.cap||mv.flags===1){if(type===wP)s+=FILES[mv.from&7];s+='x';}
+  s+=FILES[mv.to&7]+((mv.to>>4)+1);
+  if(mv.flags===4)s+='='+(TC[mv.promo>8?mv.promo-8:mv.promo]||'Q');
+  const{board:nb,castle:nc,ep:nep}=applyMove(b,mv,castle,ep);
+  const opp=turn==='w'?'b':'w';
+  if(inCheck(nb,opp)){const om=legalMoves(nb,opp,nep,nc);s+=om.length===0?'#':'+';}
+  return s;
+}
+
+// ════════════════════════════════════════
+// FEN GENERATOR (feed to Stockfish)
+// ════════════════════════════════════════
+const FEN_PIECE={1:'P',2:'N',3:'B',4:'R',5:'Q',6:'K',9:'p',10:'n',11:'b',12:'r',13:'q',14:'k'};
+
+function boardToFen(b,turn,castle,ep,halfmove,fullmove){
+  let fen='';
+  for(let r=7;r>=0;r--){
+    let empty=0;
+    for(let c=0;c<8;c++){
+      const p=b[r*16+c];
+      if(p){if(empty){fen+=empty;empty=0;}fen+=FEN_PIECE[p]||'?';}
+      else empty++;
+    }
+    if(empty)fen+=empty;
+    if(r>0)fen+='/';
+  }
+  fen+=' '+(turn==='w'?'w':'b')+' ';
+  let cas='';
+  if(castle.wK)cas+='K';if(castle.wQ)cas+='Q';
+  if(castle.bK)cas+='k';if(castle.bQ)cas+='q';
+  fen+=(cas||'-')+' ';
+  fen+=(ep>=0?sq2alg(ep):'-')+' ';
+  fen+=(halfmove||0)+' '+(fullmove||1);
+  return fen;
+}
+
+// UCI move → our move object
+function uciToMove(uci,b,turn,ep,castle){
+  const from=alg2sq(uci.slice(0,2));
+  const to=alg2sq(uci.slice(2,4));
+  const promoChar=uci[4];
+  const legal=legalMoves(b,turn,ep,castle);
+  return legal.find(m=>{
+    if(m.from!==from||m.to!==to)return false;
+    if(promoChar){
+      const pp={q:wQ,r:wR,b:wB,n:wN}[promoChar];
+      const isW=turn==='w';
+      return m.promo===(isW?pp:pp+8);
+    }
+    return true;
+  })||null;
+}
+
+// ════════════════════════════════════════
+// STOCKFISH INTERFACE
+// ════════════════════════════════════════
+let sf=null, sfReady=false, sfElo=1500, sfWasmUrl=null;
+let sfResolve=null, sfLines=[], sfThinking=false;
+
+function initStockfish(){
+  setEngineStatus('loading','Iniciando motor…');
+  try{
+    // STOCKFISH() returns the engine synchronously (workerObj)
+    // onmessage MUST be assigned in the same tick, before the engine's internal setTimeout(1ms) fires
+    sf = STOCKFISH(sfWasmUrl || undefined);
+
+    if(!sf || typeof sf.postMessage !== 'function'){
+      throw new Error('Invalid engine object');
+    }
+
+    // Assign IMMEDIATELY — same synchronous tick
+    sf.onmessage = handleSfMessage;
+    if(typeof sf.addMessageListener === 'function'){
+      sf.addMessageListener(handleSfMessage);
+    }
+
+    sf.postMessage('uci');
+
+  }catch(e){
+    console.error('SF init error:', e);
+    setEngineStatus('error','Error iniciando motor');
+    document.getElementById('btn-retry').style.display='block';
+  }
+}
+
+function sfSend(cmd){
+  if(!sf)return;
+  try{
+    if(typeof sf.postMessage==='function') sf.postMessage(cmd);
+    else if(typeof sf.send==='function') sf.send(cmd);
+  }catch(e){}
+}
+
+function handleSfMessage(event){
+  const line=typeof event==='string'?event:(event.data||'');
+  if(!line)return;
+
+  if(line.includes('uciok')){
+    sfSend('ucinewgame');
+    applyEloSettings();
+    sfSend('isready');
+    return;
+  }
+  if(line.includes('readyok')){
+    sfReady=true;
+    setEngineStatus('ready','Stockfish listo · ELO '+sfElo);
+    analyze();
+    return;
+  }
+
+  // Collect info lines (multipv)
+  if(line.startsWith('info')&&line.includes(' pv ')){
+    const scoreM=line.match(/score (cp|mate) (-?\d+)/);
+    const pvM=line.match(/ pv (.+)/);
+    const mpvM=line.match(/multipv (\d+)/);
+    if(pvM){
+      const idx=mpvM?parseInt(mpvM[1])-1:0;
+      const moves=pvM[1].trim().split(' ');
+      let scoreStr='';
+      if(scoreM){
+        if(scoreM[1]==='mate'){scoreStr='M'+scoreM[2];}
+        else{const cp=parseInt(scoreM[2]);scoreStr=(cp>=0?'+':'')+( cp/100).toFixed(2);}
+      }
+      sfLines[idx]={uci:moves[0],score:scoreStr,scoreRaw:scoreM?parseInt(scoreM[2]):0,scoreType:scoreM?scoreM[1]:'cp'};
+    }
+    return;
+  }
+
+  if(line.startsWith('bestmove')&&sfResolve){
+    const best=line.split(' ')[1];
+    const resolve=sfResolve;sfResolve=null;sfThinking=false;
+    resolve({best,lines:[...sfLines]});
+  }
+}
+
+function applyEloSettings(){
+  // Map ELO to Stockfish Skill Level (0–20)
+  const skill=Math.round((sfElo-600)/130);
+  const clampedSkill=Math.max(0,Math.min(20,skill));
+  sfSend('setoption name UCI_LimitStrength value true');
+  sfSend('setoption name UCI_Elo value '+sfElo);
+  sfSend('setoption name Skill Level value '+clampedSkill);
+  sfSend('setoption name MultiPV value 3');
+}
+
+function updateElo(val){
+  sfElo=parseInt(val);
+  document.getElementById('elo-val').textContent=sfElo;
+  if(sfReady){
+    applyEloSettings();
+    sfSend('isready');
+    setEngineStatus('ready','Stockfish · ELO '+sfElo);
+  }
+}
+
+function askStockfish(fen,movetime){
+  return new Promise(resolve=>{
+    if(!sfReady){resolve({best:null,lines:[]});return;}
+    sfLines=[];sfThinking=true;sfResolve=resolve;
+    sfSend('position fen '+fen);
+    sfSend('go movetime '+movetime+' multipv 3');
+  });
+}
+
+function setEngineStatus(state,txt){
+  const dot=document.getElementById('edot');
+  dot.className='eng-dot '+state;
+  document.getElementById('etxt').textContent=txt;
+}
+
+// ════════════════════════════════════════
+// GAME STATE
+// ════════════════════════════════════════
+let board=initBoard(),turn='w',ep=-1,castle={wK:true,wQ:true,bK:true,bQ:true};
+let halfmove=0,fullmove=1;
+let selected=null,lastMoves=[],bestMoves=[],gameOver=false,histLog=[];
+let undoStack=[],promoResolve=null,analysisToken=0;
+let boardFlipped=false;
+
+async function analyze(){
+  if(gameOver||!sfReady)return;
+  const token=++analysisToken;
+  renderAnalysis(true);
+  clearArrows();
+
+  const fen=boardToFen(board,turn,castle,ep,halfmove,fullmove);
+  // More time for higher ELO
+  const movetime=sfElo<1000?150:sfElo<1800?250:sfElo<2500?400:600;
+  const{best,lines}=await askStockfish(fen,movetime);
+  if(token!==analysisToken)return;
+
+  // Build display moves from lines
+  const legal=legalMoves(board,turn,ep,castle);
+  bestMoves=[];
+  for(const line of lines){
+    if(!line||!line.uci)continue;
+    const mv=uciToMove(line.uci,board,turn,ep,castle);
+    if(!mv)continue;
+    const san=toSAN(mv,board,turn,ep,castle,legal);
+    bestMoves.push({from:sq2alg(mv.from),to:sq2alg(mv.to),san,scoreStr:line.score,mv});
+  }
+
+  renderArrows();
+  renderBoard();
+  renderAnalysis(false);
+  renderEval(lines[0]);
+}
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function getSZ(){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--SZ'));}
+function sqCenter(name){
+  const sz=getSZ();
+  const c=FILES.indexOf(name[0]);
+  const r=parseInt(name[1])-1;
+  const col=boardFlipped?7-c:c;
+  const row=boardFlipped?r:7-r;
+  return{x:col*sz+sz/2,y:row*sz+sz/2};
+}
+function clearArrows(){document.getElementById('arrows').querySelectorAll('line').forEach(e=>e.remove());}
+
+function renderArrows(){
+  clearArrows();
+  const svg=document.getElementById('arrows');
+  bestMoves.slice(0,3).forEach((mv,i)=>{
+    const from=sqCenter(mv.from),to=sqCenter(mv.to);
+    const dx=to.x-from.x,dy=to.y-from.y,len=Math.sqrt(dx*dx+dy*dy);
+    if(len<2)return;
+    const trim=AW[i]*3,ex=to.x-dx/len*trim,ey=to.y-dy/len*trim;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',from.x.toFixed(1));line.setAttribute('y1',from.y.toFixed(1));
+    line.setAttribute('x2',ex.toFixed(1));line.setAttribute('y2',ey.toFixed(1));
+    line.setAttribute('stroke',AC[i]);line.setAttribute('stroke-width',AW[i]);
+    line.setAttribute('stroke-linecap','round');line.setAttribute('marker-end',`url(#a${i})`);
+    line.setAttribute('opacity','0.82');
+    svg.appendChild(line);
+  });
+}
+
+function renderBoard(){
+  const el=document.getElementById('board');el.innerHTML='';
+  const bestSqs=new Set(bestMoves.flatMap(m=>[alg2sq(m.from),alg2sq(m.to)]));
+  const legal=selected!==null?legalMoves(board,turn,ep,castle).filter(m=>m.from===selected):[];
+  const legalTos=new Set(legal.map(m=>m.to));
+  const kingSq=inCheck(board,turn)?findKing(board,turn):-1;
+
+  for(let row=0;row<8;row++){
+    for(let col=0;col<8;col++){
+      const r=boardFlipped?row:7-row;
+      const c=boardFlipped?7-col:col;
+      const sq=r*16+c;
+      const isLight=(r+c)%2===0;
+      const p=board[sq];
+      const div=document.createElement('div');
+      let cls='sq '+(isLight?'l':'d');
+      if(lastMoves.includes(sq))cls+=' lm';
+      if(selected===sq)cls+=' sel';
+      if(bestSqs.has(sq)&&selected!==sq)cls+=' best';
+      if(sq===kingSq)cls+=' check-sq';
+      div.className=cls;
+      if(legalTos.has(sq)){const dot=document.createElement('div');dot.className='dot'+(p?' cap':'');div.appendChild(dot);}
+      if(p){const span=document.createElement('span');span.className='piece '+(p<7?'w':'b');span.textContent=GLYPHS[p];div.appendChild(span);}
+      div.addEventListener('click',()=>handleClick(sq));
+      el.appendChild(div);
+    }
+  }
+}
+
+function renderCoords(){
+  const rl=document.getElementById('ranks'),fl=document.getElementById('files');
+  rl.innerHTML='';fl.innerHTML='';
+  for(let r=0;r<8;r++){const d=document.createElement('div');d.className='rlbl';d.textContent=boardFlipped?r+1:8-r;rl.appendChild(d);}
+  for(let c=0;c<8;c++){const d=document.createElement('div');d.className='flbl';d.textContent=(boardFlipped?[...FILES].reverse():FILES.split('').map(x=>x))[c].toUpperCase();fl.appendChild(d);}
+}
+
+function renderTurn(){
+  document.getElementById('gem').className='gem '+(turn==='w'?'w':'b');
+  document.getElementById('tname').textContent=gameOver?'Fin de la partida':turn==='w'?'BLANCAS':'NEGRAS';
+  const sub=document.getElementById('tsub');
+  if(gameOver){sub.textContent='';return;}
+  if(inCheck(board,turn)){sub.textContent='⚠ Jaque';sub.style.color='var(--chk)';}
+  else{sub.textContent='Tu turno';sub.style.color='var(--dim)';}
+}
+
+function renderBanner(){
+  const el=document.getElementById('banner');el.className='banner';
+  if(gameOver){el.className='banner end';el.textContent=gameOver;}
+  else if(inCheck(board,turn)){el.className='banner chk';el.textContent='⚠ ¡JAQUE!';}
+}
+
+function renderAnalysis(loading=false){
+  const el=document.getElementById('analysis');
+  if(loading){el.innerHTML='<div class="thinking"><span class="spin">⚙</span>Analizando…</div>';return;}
+  if(!bestMoves.length){el.innerHTML='<div class="thinking" style="font-size:.82rem">Sin jugadas</div>';return;}
+  el.innerHTML=bestMoves.slice(0,3).map((mv,i)=>`
+    <div class="mrow" style="animation-delay:${i*.07}s">
+      <div class="mrank">${i+1}ª</div>
+      <div>
+        <div class="msan" style="color:${AC[i]}">${mv.san}</div>
+        <div class="mmeta">${mv.from.toUpperCase()} → ${mv.to.toUpperCase()} &nbsp;|&nbsp; ${mv.scoreStr||'—'}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderEval(line){
+  if(!line)return;
+  let cp=0,display='0.00';
+  if(line.scoreType==='mate'){
+    cp=line.scoreRaw>0?800:-800;
+    display='M'+Math.abs(line.scoreRaw);
+  }else{
+    cp=line.scoreRaw;
+    display=(cp>=0?'+':'')+(cp/100).toFixed(2);
+  }
+  const pct=Math.max(5,Math.min(95,50-(Math.max(-800,Math.min(800,cp))/800)*45));
+  document.getElementById('eval-fill').style.width=pct+'%';
+  document.getElementById('eval-num').textContent=display;
+}
+
+function renderHistory(){
+  const el=document.getElementById('hist');
+  if(!histLog.length){el.innerHTML='<span style="color:var(--dim);font-style:italic;font-size:.82rem">Sin movimientos</span>';return;}
+  el.innerHTML=histLog.map((e,i)=>`<div class="hr"><span class="hn">${i+1}.</span><span class="hw">${e.w}</span><span class="hb">${e.b||''}</span></div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function rotateBoard(){
+  boardFlipped=!boardFlipped;
+  renderCoords();
+  renderBoard();
+  renderArrows();
+}
+
+function renderAll(){
+  renderBoard();renderTurn();renderBanner();renderHistory();
+  document.getElementById('btn-undo').disabled=undoStack.length===0;
+}
+
+// ════════════════════════════════════════
+// INTERACTION
+// ════════════════════════════════════════
+async function handleClick(sq){
+  if(gameOver||promoResolve)return;
+  const p=board[sq];
+  if(selected===null){if(p&&pc(p)===turn){selected=sq;renderBoard();}return;}
+  if(selected===sq){selected=null;renderBoard();return;}
+  const legal=legalMoves(board,turn,ep,castle);
+  const matching=legal.filter(m=>m.from===selected&&m.to===sq);
+  if(matching.length){
+    let mv=matching[0];
+    if(matching.some(m=>m.flags===4)){mv=await askPromo(matching);if(!mv){selected=null;renderBoard();return;}}
+    doMove(mv,legal);return;
+  }
+  if(p&&pc(p)===turn){selected=sq;renderBoard();return;}
+  selected=null;renderBoard();
+}
+
+function doMove(mv,legal){
+  const s=toSAN(mv,board,turn,ep,castle,legal);
+  const result=applyMove(board,mv,castle,ep);
+  undoStack.push({board:[...board],turn,ep,castle:{...castle},histLog:histLog.map(e=>({...e})),lastMoves:[...lastMoves],halfmove,fullmove});
+  board=result.board;castle=result.castle;ep=result.ep;
+  lastMoves=[mv.from,mv.to];
+  halfmove=(mv.cap||mv.piece===wP||mv.piece===bP)?0:halfmove+1;
+  if(turn==='b')fullmove++;
+  const prevTurn=turn;turn=turn==='w'?'b':'w';
+  selected=null;bestMoves=[];
+  if(prevTurn==='w')histLog.push({w:s,b:''});
+  else if(histLog.length)histLog[histLog.length-1].b=s;
+  const nextLegal=legalMoves(board,turn,ep,castle);
+  if(!nextLegal.length)gameOver=inCheck(board,turn)?(prevTurn==='w'?'♔ Jaque Mate — Ganan BLANCAS':'♚ Jaque Mate — Ganan NEGRAS'):'½-½ Tablas por ahogado';
+  clearArrows();renderAll();
+  if(!gameOver){sfSend('ucinewgame');analyze();}
+}
+
+function askPromo(matching){
+  return new Promise(resolve=>{
+    promoResolve=resolve;
+    const isW=matching[0].piece<7;
+    const container=document.getElementById('ppieces');container.innerHTML='';
+    (isW?[wQ,wR,wB,wN]:[bQ,bR,bB,bN]).forEach(pp=>{
+      const btn=document.createElement('button');btn.className='pp';
+      btn.textContent=GLYPHS[pp];btn.style.color=isW?'#f5ede0':'#180c04';
+      btn.onclick=()=>{document.getElementById('promo').classList.remove('open');promoResolve=null;resolve(matching.find(m=>m.promo===pp)||null);};
+      container.appendChild(btn);
+    });
+    document.getElementById('promo').classList.add('open');
+  });
+}
+
+function undoMove(){
+  if(!undoStack.length)return;
+  const prev=undoStack.pop();
+  board=prev.board;turn=prev.turn;ep=prev.ep;castle=prev.castle;
+  histLog=prev.histLog;lastMoves=prev.lastMoves;halfmove=prev.halfmove;fullmove=prev.fullmove;
+  selected=null;bestMoves=[];gameOver=false;
+  clearArrows();renderAll();
+  sfSend('ucinewgame');analyze();
+}
+
+function newGame(){
+  board=initBoard();turn='w';ep=-1;castle={wK:true,wQ:true,bK:true,bQ:true};
+  halfmove=0;fullmove=1;
+  selected=null;lastMoves=[];bestMoves=[];gameOver=false;histLog=[];undoStack=[];
+  clearArrows();
+  document.getElementById('eval-fill').style.width='50%';
+  document.getElementById('eval-num').textContent='—';
+  sfSend('ucinewgame');
+  renderAll();analyze();
+}
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+renderCoords();
+renderAll();
+
+// CDN list to try in order
+const SF_CDNS = [
+  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js',  wasm: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.wasm' },
+  { js: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.js',             wasm: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.wasm' },
+  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js',  wasm: null },
+  { js: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js', wasm: null },
+];
+let sfCdnIdx = 0;
+
+function loadStockfishScript(url){
+  return new Promise((resolve,reject)=>{
+    // Remove any previous script
+    const old=document.getElementById('sf-script');
+    if(old)old.remove();
+    const s=document.createElement('script');
+    s.id='sf-script';
+    s.src=url;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Failed: '+url));
+    document.head.appendChild(s);
+  });
+}
+
+async function tryLoadStockfish(){
+  setEngineStatus('loading','Cargando Stockfish…');
+  document.getElementById('btn-retry').style.display='none';
+
+  for(let i=sfCdnIdx;i<SF_CDNS.length;i++){
+    const cdn=SF_CDNS[i];
+    try{
+      setEngineStatus('loading','Cargando motor ('+(i+1)+'/'+SF_CDNS.length+')…');
+      await loadStockfishScript(cdn.js);
+      await new Promise(r=>setTimeout(r,300));
+      if(typeof STOCKFISH==='function'){
+        sfCdnIdx=i;
+        sfWasmUrl=cdn.wasm;
+        initStockfish();
+        return;
+      }
+    }catch(e){}
+  }
+
+  // All CDNs failed
+  setEngineStatus('error','Sin conexión a internet');
+  document.getElementById('etxt').textContent='No se pudo cargar Stockfish';
+  document.getElementById('btn-retry').style.display='block';
+  document.getElementById('analysis').innerHTML=`
+    <div style="color:var(--dim);font-size:.82rem;line-height:1.6;margin-top:4px;">
+      Stockfish requiere internet.<br>
+      Verifica tu conexión y pulsa <b style="color:var(--gold2)">↻ Reintentar</b>.
+    </div>`;
+}
+
+function retryLoad(){
+  sfCdnIdx=0;
+  tryLoadStockfish();
+}
+
+window.addEventListener('load',()=>setTimeout(tryLoadStockfish,100));
+</script>
+</body>
+</html>
