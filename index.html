@@ -242,7 +242,7 @@ input[type=range]::-webkit-slider-thumb{
 <div id="app">
   <header>
     <div class="logo">♟ CHESS MASTER</div>
-    <div class="logo-sub">Powered by Stockfish 17</div>
+    <div class="logo-sub">Powered by Stockfish 10</div>
   </header>
 
   <main>
@@ -275,58 +275,13 @@ input[type=range]::-webkit-slider-thumb{
     <!-- PANEL -->
     <div class="panel">
 
-      <!-- Turn + Actions -->
+      <!-- Turn -->
       <div class="card">
         <div class="turn-row">
           <div class="gem w" id="gem"></div>
-          <div style="flex:1">
+          <div>
             <div class="tname" id="tname">BLANCAS</div>
             <div class="tsub" id="tsub">Tu turno</div>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <button onclick="undoMove()" id="btn-undo" disabled title="Deshacer" style="
-              width:44px;height:44px;border-radius:50%;
-              border:1.5px solid var(--bdr2);
-              background:rgba(200,149,46,.08);color:var(--gold2);
-              font-size:1.25rem;cursor:pointer;
-              display:flex;align-items:center;justify-content:center;
-              transition:all .15s cubic-bezier(.4,0,.2,1);
-              flex-shrink:0;opacity:.3;
-              box-shadow:0 2px 8px rgba(0,0,0,.3);"
-              ontouchstart="if(!this.disabled){this.style.transform='scale(.88)';this.style.background='rgba(200,149,46,.3)';}"
-              ontouchend="this.style.transform='scale(1)';this.style.background='rgba(200,149,46,.08)';"
-              onmousedown="if(!this.disabled)this.style.transform='scale(.88)'"
-              onmouseup="this.style.transform='scale(1)'"
-              onmouseover="if(!this.disabled)this.style.background='rgba(200,149,46,.2)'"
-              onmouseout="this.style.background='rgba(200,149,46,.08)'">↩</button>
-            <button onclick="rotateBoard()" title="Rotar tablero" style="
-              width:44px;height:44px;border-radius:50%;
-              border:1.5px solid rgba(90,160,240,.4);
-              background:rgba(90,160,240,.08);color:var(--blu);
-              font-size:1.25rem;cursor:pointer;
-              display:flex;align-items:center;justify-content:center;
-              transition:all .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;
-              box-shadow:0 2px 8px rgba(0,0,0,.3);"
-              ontouchstart="this.style.transform='scale(.88)';this.style.background='rgba(90,160,240,.3)';"
-              ontouchend="this.style.transform='scale(1)';this.style.background='rgba(90,160,240,.08)';"
-              onmousedown="this.style.transform='scale(.88)'"
-              onmouseup="this.style.transform='scale(1)'"
-              onmouseover="this.style.background='rgba(90,160,240,.2)'"
-              onmouseout="this.style.background='rgba(90,160,240,.08)'">⇅</button>
-            <button onclick="newGame()" title="Nueva partida" style="
-              width:44px;height:44px;border-radius:50%;
-              border:1.5px solid rgba(216,80,80,.4);
-              background:rgba(216,80,80,.07);color:var(--red);
-              font-size:1.25rem;cursor:pointer;
-              display:flex;align-items:center;justify-content:center;
-              transition:all .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;
-              box-shadow:0 2px 8px rgba(0,0,0,.3);"
-              ontouchstart="this.style.transform='scale(.88)';this.style.background='rgba(216,80,80,.25)';"
-              ontouchend="this.style.transform='scale(1)';this.style.background='rgba(216,80,80,.07)';"
-              onmousedown="this.style.transform='scale(.88)'"
-              onmouseup="this.style.transform='scale(1)'"
-              onmouseover="this.style.background='rgba(216,80,80,.2)'"
-              onmouseout="this.style.background='rgba(216,80,80,.07)'">↺</button>
           </div>
         </div>
       </div>
@@ -341,14 +296,14 @@ input[type=range]::-webkit-slider-thumb{
           <div class="elo-label">ELO</div>
           <div class="elo-val" id="elo-val">1500</div>
         </div>
-        <input type="range" id="elo-slider" min="600" max="3600" step="100" value="1500"
+        <input type="range" id="elo-slider" min="600" max="3200" step="100" value="1500"
           oninput="updateElo(this.value)"/>
         <div class="elo-ticks">
           <span class="elo-tick">600</span>
           <span class="elo-tick">Principiante</span>
           <span class="elo-tick" style="color:var(--gold)">1500</span>
           <span class="elo-tick">Maestro</span>
-          <span class="elo-tick">3600</span>
+          <span class="elo-tick">3200</span>
         </div>
       </div>
 
@@ -376,6 +331,13 @@ input[type=range]::-webkit-slider-thumb{
       <div class="card">
         <div class="ctitle">Historial</div>
         <div class="hist" id="hist"></div>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <button class="btn btn-g" id="btn-undo" onclick="undoMove()" disabled>↩ Deshacer</button>
+        <button class="btn btn-b" id="btn-rotate" onclick="rotateBoard()">⇅ Rotar tablero</button>
+        <button class="btn btn-r" onclick="newGame()">↺ Nueva partida</button>
       </div>
 
     </div>
@@ -554,8 +516,34 @@ function uciToMove(uci,b,turn,ep,castle){
 // ════════════════════════════════════════
 // STOCKFISH INTERFACE
 // ════════════════════════════════════════
-let sf=null, sfReady=false, sfElo=1500;
+let sf=null, sfReady=false, sfElo=1500, sfWasmUrl=null;
 let sfResolve=null, sfLines=[], sfThinking=false;
+
+function initStockfish(){
+  setEngineStatus('loading','Iniciando motor…');
+  try{
+    // STOCKFISH() returns the engine synchronously (workerObj)
+    // onmessage MUST be assigned in the same tick, before the engine's internal setTimeout(1ms) fires
+    sf = STOCKFISH(sfWasmUrl || undefined);
+
+    if(!sf || typeof sf.postMessage !== 'function'){
+      throw new Error('Invalid engine object');
+    }
+
+    // Assign IMMEDIATELY — same synchronous tick
+    sf.onmessage = handleSfMessage;
+    if(typeof sf.addMessageListener === 'function'){
+      sf.addMessageListener(handleSfMessage);
+    }
+
+    sf.postMessage('uci');
+
+  }catch(e){
+    console.error('SF init error:', e);
+    setEngineStatus('error','Error iniciando motor');
+    document.getElementById('btn-retry').style.display='block';
+  }
+}
 
 function sfSend(cmd){
   if(!sf)return;
@@ -563,6 +551,48 @@ function sfSend(cmd){
     if(typeof sf.postMessage==='function') sf.postMessage(cmd);
     else if(typeof sf.send==='function') sf.send(cmd);
   }catch(e){}
+}
+
+function handleSfMessage(event){
+  const line=typeof event==='string'?event:(event.data||'');
+  if(!line)return;
+
+  if(line.includes('uciok')){
+    sfSend('ucinewgame');
+    applyEloSettings();
+    sfSend('isready');
+    return;
+  }
+  if(line.includes('readyok')){
+    sfReady=true;
+    setEngineStatus('ready','Stockfish listo · ELO '+sfElo);
+    analyze();
+    return;
+  }
+
+  // Collect info lines (multipv)
+  if(line.startsWith('info')&&line.includes(' pv ')){
+    const scoreM=line.match(/score (cp|mate) (-?\d+)/);
+    const pvM=line.match(/ pv (.+)/);
+    const mpvM=line.match(/multipv (\d+)/);
+    if(pvM){
+      const idx=mpvM?parseInt(mpvM[1])-1:0;
+      const moves=pvM[1].trim().split(' ');
+      let scoreStr='';
+      if(scoreM){
+        if(scoreM[1]==='mate'){scoreStr='M'+scoreM[2];}
+        else{const cp=parseInt(scoreM[2]);scoreStr=(cp>=0?'+':'')+( cp/100).toFixed(2);}
+      }
+      sfLines[idx]={uci:moves[0],score:scoreStr,scoreRaw:scoreM?parseInt(scoreM[2]):0,scoreType:scoreM?scoreM[1]:'cp'};
+    }
+    return;
+  }
+
+  if(line.startsWith('bestmove')&&sfResolve){
+    const best=line.split(' ')[1];
+    const resolve=sfResolve;sfResolve=null;sfThinking=false;
+    resolve({best,lines:[...sfLines]});
+  }
 }
 
 function applyEloSettings(){
@@ -617,7 +647,7 @@ async function analyze(){
 
   const fen=boardToFen(board,turn,castle,ep,halfmove,fullmove);
   // More time for higher ELO
-  const movetime=sfElo<1000?50:sfElo<1800?100:sfElo<2500?200:sfElo<3000?350:500;
+  const movetime=sfElo<1000?150:sfElo<1800?250:sfElo<2500?400:600;
   const{best,lines}=await askStockfish(fen,movetime);
   if(token!==analysisToken)return;
 
@@ -682,7 +712,7 @@ function renderBoard(){
       const r=boardFlipped?row:7-row;
       const c=boardFlipped?7-col:col;
       const sq=r*16+c;
-      const isLight=(r+c)%2!==0;
+      const isLight=(r+c)%2===0;
       const p=board[sq];
       const div=document.createElement('div');
       let cls='sq '+(isLight?'l':'d');
@@ -766,11 +796,7 @@ function rotateBoard(){
 
 function renderAll(){
   renderBoard();renderTurn();renderBanner();renderHistory();
-  const undoBtn=document.getElementById('btn-undo');
-  if(undoBtn){
-    undoBtn.disabled=undoStack.length===0;
-    undoBtn.style.opacity=undoStack.length===0?'0.35':'1';
-  }
+  document.getElementById('btn-undo').disabled=undoStack.length===0;
 }
 
 // ════════════════════════════════════════
@@ -852,127 +878,65 @@ function newGame(){
 renderCoords();
 renderAll();
 
-// ════════════════════════════════════════
-// STOCKFISH LOADER
-// ════════════════════════════════════════
-let sfCdnIdx = 0;
-
-// SF16+ Worker URLs (work locally and on GitHub Pages, not on Claude)
-const SF_WORKERS = [
-  'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish-16-lite-single.js',
-  'https://unpkg.com/stockfish@16.0.0/src/stockfish-16-lite-single.js',
-];
-
-// SF11 Script fallback (works everywhere including Claude)
-const SF_SCRIPTS = [
-  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js', wasm: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.wasm' },
-  { js: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.js', wasm: null },
+// CDN list to try in order
+const SF_CDNS = [
+  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js',  wasm: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.wasm' },
+  { js: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.js',             wasm: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.wasm' },
+  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js',  wasm: null },
   { js: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js', wasm: null },
 ];
+let sfCdnIdx = 0;
 
-function handleSfMsg(event){
-  const line = typeof event === 'string' ? event : (event.data || '');
-  if(!line) return;
-  if(line.includes('uciok')){ applyEloSettings(); sfSend('isready'); return; }
-  if(line.includes('readyok')){
-    sfReady = true;
-    setEngineStatus('ready', 'Stockfish listo · ELO ' + sfElo);
-    analyze();
-    return;
-  }
-  if(line.startsWith('info') && line.includes(' pv ')){
-    const scoreM = line.match(/score (cp|mate) (-?\d+)/);
-    const pvM = line.match(/ pv (.+)/);
-    const mpvM = line.match(/multipv (\d+)/);
-    if(pvM){
-      const idx = mpvM ? parseInt(mpvM[1]) - 1 : 0;
-      const moves = pvM[1].trim().split(' ');
-      let scoreStr = '';
-      if(scoreM){
-        if(scoreM[1] === 'mate') scoreStr = 'M' + scoreM[2];
-        else { const cp = parseInt(scoreM[2]); scoreStr = (cp >= 0 ? '+' : '') + (cp / 100).toFixed(2); }
-      }
-      sfLines[idx] = { uci: moves[0], score: scoreStr, scoreRaw: scoreM ? parseInt(scoreM[2]) : 0, scoreType: scoreM ? scoreM[1] : 'cp' };
-    }
-    return;
-  }
-  if(line.startsWith('bestmove') && sfResolve){
-    const resolve = sfResolve; sfResolve = null; sfThinking = false;
-    resolve({ best: line.split(' ')[1], lines: [...sfLines] });
-  }
-}
-
-async function tryWorker(url){
-  return new Promise((res, rej) => {
-    const w = new Worker(url);
-    const t = setTimeout(() => { w.terminate(); rej(new Error('timeout')); }, 6000);
-    w.onerror = e => { clearTimeout(t); w.terminate(); rej(e); };
-    w.onmessage = e => {
-      if((e.data || '').includes('uciok')){ clearTimeout(t); res(w); }
-    };
-    w.postMessage('uci');
-  });
-}
-
-function loadScript(url){
-  return new Promise((res, rej) => {
-    const old = document.getElementById('sf-script'); if(old) old.remove();
-    const s = document.createElement('script');
-    s.id = 'sf-script'; s.src = url;
-    s.onload = res; s.onerror = () => rej(new Error('load fail'));
+function loadStockfishScript(url){
+  return new Promise((resolve,reject)=>{
+    // Remove any previous script
+    const old=document.getElementById('sf-script');
+    if(old)old.remove();
+    const s=document.createElement('script');
+    s.id='sf-script';
+    s.src=url;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Failed: '+url));
     document.head.appendChild(s);
   });
 }
 
 async function tryLoadStockfish(){
-  setEngineStatus('loading', 'Cargando Stockfish 16…');
-  document.getElementById('btn-retry').style.display = 'none';
+  setEngineStatus('loading','Cargando Stockfish…');
+  document.getElementById('btn-retry').style.display='none';
 
-  // Try SF16 Worker first (local / GitHub Pages)
-  for(const url of SF_WORKERS){
+  for(let i=sfCdnIdx;i<SF_CDNS.length;i++){
+    const cdn=SF_CDNS[i];
     try{
-      setEngineStatus('loading', 'Intentando SF16…');
-      const worker = await tryWorker(url);
-      sf = worker;
-      sf.onmessage = handleSfMsg;
-      applyEloSettings();
-      sfSend('isready');
-      setEngineStatus('loading', 'SF16 listo, iniciando…');
-      return;
-    }catch(e){ console.warn('SF16 Worker failed:', e.message); }
+      setEngineStatus('loading','Cargando motor ('+(i+1)+'/'+SF_CDNS.length+')…');
+      await loadStockfishScript(cdn.js);
+      await new Promise(r=>setTimeout(r,300));
+      if(typeof STOCKFISH==='function'){
+        sfCdnIdx=i;
+        sfWasmUrl=cdn.wasm;
+        initStockfish();
+        return;
+      }
+    }catch(e){}
   }
 
-  // Fallback: SF11 via script tag
-  for(const cdn of SF_SCRIPTS){
-    try{
-      setEngineStatus('loading', 'Cargando SF11…');
-      await loadScript(cdn.js);
-      await new Promise(r => setTimeout(r, 400));
-      if(typeof STOCKFISH !== 'function') continue;
-      sf = STOCKFISH(cdn.wasm || undefined);
-      if(!sf || typeof sf.postMessage !== 'function') continue;
-      sf.onmessage = handleSfMsg;
-      if(typeof sf.addMessageListener === 'function') sf.addMessageListener(handleSfMsg);
-      sf.postMessage('uci');
-      // Timeout check
-      setTimeout(() => {
-        if(!sfReady){ console.warn('SF11 timeout'); sfCdnIdx++; tryLoadStockfish(); }
-      }, 6000);
-      return;
-    }catch(e){ console.warn('SF11 failed:', e.message); }
-  }
-
-  setEngineStatus('error', 'Sin motor disponible');
-  document.getElementById('btn-retry').style.display = 'block';
-  document.getElementById('analysis').innerHTML = `
+  // All CDNs failed
+  setEngineStatus('error','Sin conexión a internet');
+  document.getElementById('etxt').textContent='No se pudo cargar Stockfish';
+  document.getElementById('btn-retry').style.display='block';
+  document.getElementById('analysis').innerHTML=`
     <div style="color:var(--dim);font-size:.82rem;line-height:1.6;margin-top:4px;">
-      No se pudo cargar Stockfish.<br>
+      Stockfish requiere internet.<br>
       Verifica tu conexión y pulsa <b style="color:var(--gold2)">↻ Reintentar</b>.
     </div>`;
 }
 
-function retryLoad(){ tryLoadStockfish(); }
-window.addEventListener('load', () => setTimeout(tryLoadStockfish, 100));
+function retryLoad(){
+  sfCdnIdx=0;
+  tryLoadStockfish();
+}
+
+window.addEventListener('load',()=>setTimeout(tryLoadStockfish,100));
 </script>
 </body>
 </html>
