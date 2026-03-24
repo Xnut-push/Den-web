@@ -431,8 +431,31 @@ input[type=range]::-webkit-slider-thumb{
 
       <!-- History -->
       <div class="card">
-        <div class="ctitle">Historial</div>
+        <div class="ctitle" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Historial</span>
+          <button onclick="copyPGN()" title="Copiar PGN" style="
+            padding:3px 10px;font-family:'Josefin Sans',sans-serif;font-size:.62rem;
+            letter-spacing:.08em;background:rgba(200,149,46,.1);border:1px solid var(--gold);
+            color:var(--gold2);border-radius:5px;cursor:pointer;transition:all .15s;"
+            onmouseover="this.style.background='rgba(200,149,46,.25)'"
+            onmouseout="this.style.background='rgba(200,149,46,.1)'">📋 Copiar PGN</button>
+        </div>
         <div class="hist" id="hist"></div>
+        <div id="copy-msg" style="display:none;font-family:'Josefin Sans',sans-serif;font-size:.65rem;color:var(--grn);margin-top:6px;text-align:center;">✅ PGN copiado — pégalo en chess.com</div>
+      </div>
+
+      <!-- Saved Games -->
+      <div class="card">
+        <div class="ctitle" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Partidas guardadas</span>
+          <button onclick="clearSavedGames()" style="
+            padding:3px 10px;font-family:'Josefin Sans',sans-serif;font-size:.62rem;
+            letter-spacing:.08em;background:rgba(216,80,80,.07);border:1px solid rgba(216,80,80,.3);
+            color:var(--red);border-radius:5px;cursor:pointer;transition:all .15s;"
+            onmouseover="this.style.background='rgba(216,80,80,.2)'"
+            onmouseout="this.style.background='rgba(216,80,80,.07)'">🗑 Borrar todo</button>
+        </div>
+        <div id="saved-games" style="max-height:180px;overflow-y:auto;"></div>
       </div>
 
     </div>
@@ -920,6 +943,7 @@ function doMove(mv,legal){
   const nextLegal=legalMoves(board,turn,ep,castle);
   if(!nextLegal.length)gameOver=inCheck(board,turn)?(prevTurn==='w'?'♔ Jaque Mate — Ganan BLANCAS':'♚ Jaque Mate — Ganan NEGRAS'):'½-½ Tablas por ahogado';
   clearArrows();renderAll();updateOpeningDisplay();
+  if(gameOver) setTimeout(saveGame, 500);
   if(!gameOver){sfSend('ucinewgame');analyze();}
 }
 
@@ -949,7 +973,115 @@ function undoMove(){
   sfSend('ucinewgame');analyze();
 }
 
+// ════════════════════════════════════════
+// PGN & SAVED GAMES
+// ════════════════════════════════════════
+function generatePGN(){
+  const now = new Date();
+  const date = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  const result = gameOver ? (gameOver.includes('BLANCAS')?'1-0':gameOver.includes('NEGRAS')?'0-1':'1/2-1/2') : '*';
+  let pgn = `[Event "elo-den"]\n[Date "${date}"]\n[White "?"]\n[Black "?"]\n[Result "${result}"]\n\n`;
+  let moveNum = 1;
+  for(const entry of histLog){
+    pgn += `${moveNum}. ${entry.w||''}`;
+    if(entry.b) pgn += ` ${entry.b}`;
+    pgn += ' ';
+    moveNum++;
+  }
+  pgn += result;
+  return pgn.trim();
+}
+
+function copyPGN(){
+  if(!histLog.length){ return; }
+  const pgn = generatePGN();
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(pgn).then(()=>showCopyMsg()).catch(()=>fallbackCopy(pgn));
+  } else { fallbackCopy(pgn); }
+}
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showCopyMsg();
+}
+
+function showCopyMsg(){
+  const msg = document.getElementById('copy-msg');
+  msg.style.display='block';
+  setTimeout(()=>msg.style.display='none', 3000);
+}
+
+function saveGame(){
+  if(!histLog.length || !gameOver) return;
+  try {
+    const games = JSON.parse(localStorage.getItem('elodenGames')||'[]');
+    const pgn = generatePGN();
+    const now = new Date();
+    const opening = detectOpeningFor('w');
+    games.unshift({
+      date: now.toLocaleDateString('es'),
+      time: now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}),
+      result: gameOver,
+      moves: histLog.length,
+      opening: opening ? opening.n : '—',
+      pgn
+    });
+    // Guardar máximo 20 partidas
+    localStorage.setItem('elodenGames', JSON.stringify(games.slice(0,20)));
+    renderSavedGames();
+  } catch(e) {}
+}
+
+function renderSavedGames(){
+  const el = document.getElementById('saved-games');
+  if(!el) return;
+  try {
+    const games = JSON.parse(localStorage.getItem('elodenGames')||'[]');
+    if(!games.length){
+      el.innerHTML='<div style="color:var(--dim);font-family:\'Josefin Sans\',sans-serif;font-size:.75rem;padding:8px 0;">Sin partidas guardadas</div>';
+      return;
+    }
+    el.innerHTML = games.map((g,i) => `
+      <div style="padding:8px 0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:'Josefin Sans',sans-serif;font-size:.65rem;color:var(--dim);">${g.date} ${g.time} · ${g.moves} mov.</div>
+          <div style="font-size:.82rem;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.opening}</div>
+          <div style="font-family:'Josefin Sans',sans-serif;font-size:.65rem;color:${g.result.includes('BLANCAS')?'#f5ede0':g.result.includes('NEGRAS')?'var(--dim)':'var(--gold)'};">${g.result}</div>
+        </div>
+        <button onclick="copyGamePGN(${i})" style="
+          padding:4px 8px;font-family:'Josefin Sans',sans-serif;font-size:.6rem;
+          background:rgba(200,149,46,.1);border:1px solid var(--gold);color:var(--gold2);
+          border-radius:5px;cursor:pointer;flex-shrink:0;white-space:nowrap;">📋 PGN</button>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML='<div style="color:var(--dim);font-size:.75rem;">Error cargando partidas</div>';
+  }
+}
+
+function copyGamePGN(index){
+  try {
+    const games = JSON.parse(localStorage.getItem('elodenGames')||'[]');
+    if(games[index]){
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(games[index].pgn).then(()=>showCopyMsg()).catch(()=>fallbackCopy(games[index].pgn));
+      } else { fallbackCopy(games[index].pgn); }
+    }
+  } catch(e) {}
+}
+
+function clearSavedGames(){
+  if(confirm('¿Borrar todas las partidas guardadas?')){
+    localStorage.removeItem('elodenGames');
+    renderSavedGames();
+  }
+}
+
 function newGame(){
+  if(histLog.length && gameOver) saveGame();
   board=initBoard();turn='w';ep=-1;castle={wK:true,wQ:true,bK:true,bQ:true};
   halfmove=0;fullmove=1;
   selected=null;lastMoves=[];bestMoves=[];gameOver=false;histLog=[];undoStack=[];
@@ -1244,9 +1376,7 @@ function updateOpeningDisplay(){
 }
 renderCoords();
 renderAll();
-
-// ════════════════════════════════════════
-// STOCKFISH LOADER
+renderSavedGames();
 // ════════════════════════════════════════
 let sfCdnIdx = 0;
 
