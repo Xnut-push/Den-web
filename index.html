@@ -242,12 +242,21 @@ input[type=range]::-webkit-slider-thumb{
 <div id="app">
   <header>
     <div class="logo">♟ CHESS MASTER</div>
-    <div class="logo-sub">Powered by Stockfish 10</div>
+    <div class="logo-sub">Powered by Stockfish 17</div>
   </header>
 
   <main>
     <!-- BOARD -->
     <div class="board-shell">
+      <!-- Turn indicator above board -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px 12px;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;width:100%;">
+        <div class="gem w" id="gem"></div>
+        <div style="flex:1">
+          <div class="tname" id="tname">BLANCAS</div>
+          <div class="tsub" id="tsub">Tu turno</div>
+        </div>
+        <div id="banner-inline" style="font-family:'Josefin Sans',sans-serif;font-size:.72rem;letter-spacing:.06em;"></div>
+      </div>
       <div class="board-row">
         <div class="ranks" id="ranks"></div>
         <div>
@@ -264,6 +273,13 @@ input[type=range]::-webkit-slider-thumb{
                 <marker id="a2" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
                   <path d="M0,0.5 L4.5,2.5 L0,4.5 Z" fill="#5aa0f0"/>
                 </marker>
+                <marker id="aBrilliant" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <path d="M0,0.5 L5,3 L0,5.5 Z" fill="#df80ff"/>
+                </marker>
+                <filter id="brilliantGlow">
+                  <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
               </defs>
             </svg>
           </div>
@@ -275,14 +291,100 @@ input[type=range]::-webkit-slider-thumb{
     <!-- PANEL -->
     <div class="panel">
 
-      <!-- Turn -->
+      <!-- Action buttons -->
       <div class="card">
-        <div class="turn-row">
-          <div class="gem w" id="gem"></div>
-          <div>
-            <div class="tname" id="tname">BLANCAS</div>
-            <div class="tsub" id="tsub">Tu turno</div>
+        <div style="display:flex;gap:10px;align-items:center;justify-content:center;">
+            <button onclick="undoMove()" id="btn-undo" disabled title="Deshacer" style="
+              width:44px;height:44px;border-radius:50%;
+              border:1.5px solid var(--bdr2);
+              background:rgba(200,149,46,.08);color:var(--gold2);
+              font-size:1.25rem;cursor:pointer;
+              display:flex;align-items:center;justify-content:center;
+              transition:all .15s cubic-bezier(.4,0,.2,1);
+              flex-shrink:0;opacity:.3;
+              box-shadow:0 2px 8px rgba(0,0,0,.3);"
+              ontouchstart="if(!this.disabled){this.style.transform='scale(.88)';this.style.background='rgba(200,149,46,.3)';}"
+              ontouchend="this.style.transform='scale(1)';this.style.background='rgba(200,149,46,.08)';"
+              onmousedown="if(!this.disabled)this.style.transform='scale(.88)'"
+              onmouseup="this.style.transform='scale(1)'"
+              onmouseover="if(!this.disabled)this.style.background='rgba(200,149,46,.2)'"
+              onmouseout="this.style.background='rgba(200,149,46,.08)'">↩</button>
+            <button onclick="rotateBoard()" title="Rotar tablero" style="
+              width:44px;height:44px;border-radius:50%;
+              border:1.5px solid rgba(90,160,240,.4);
+              background:rgba(90,160,240,.08);color:var(--blu);
+              font-size:1.25rem;cursor:pointer;
+              display:flex;align-items:center;justify-content:center;
+              transition:all .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+              box-shadow:0 2px 8px rgba(0,0,0,.3);"
+              ontouchstart="this.style.transform='scale(.88)';this.style.background='rgba(90,160,240,.3)';"
+              ontouchend="this.style.transform='scale(1)';this.style.background='rgba(90,160,240,.08)';"
+              onmousedown="this.style.transform='scale(.88)'"
+              onmouseup="this.style.transform='scale(1)'"
+              onmouseover="this.style.background='rgba(90,160,240,.2)'"
+              onmouseout="this.style.background='rgba(90,160,240,.08)'">⇅</button>
+            <button onclick="toggleOpening()" id="btn-opening" title="Detector de aperturas" style="
+              width:44px;height:44px;border-radius:50%;
+              border:1.5px solid rgba(77,222,114,.4);
+              background:rgba(77,222,114,.08);color:var(--grn);
+              font-size:1.1rem;cursor:pointer;
+              display:flex;align-items:center;justify-content:center;
+              transition:all .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+              box-shadow:0 2px 8px rgba(0,0,0,.3);"
+              ontouchstart="this.style.transform='scale(.88)';"
+              ontouchend="this.style.transform='scale(1)';"
+              onmousedown="this.style.transform='scale(.88)'"
+              onmouseup="this.style.transform='scale(1)'"
+              onmouseover="this.style.background='rgba(77,222,114,.2)'"
+              onmouseout="this.style.background=openingOn?'rgba(77,222,114,.2)':'rgba(77,222,114,.08)'">♟︎</button>
+            <button onclick="toggleAntiGambit()" id="btn-antigambit" title="Modo Anti-gambito" style="
+              width:44px;height:44px;border-radius:50%;
+              border:1.5px solid rgba(240,192,48,.4);
+              background:rgba(240,192,48,.08);color:var(--ylw);
+              font-size:1.1rem;cursor:pointer;
+              display:flex;align-items:center;justify-content:center;
+              transition:all .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+              box-shadow:0 2px 8px rgba(0,0,0,.3);"
+              ontouchstart="this.style.transform='scale(.88)';"
+              ontouchend="this.style.transform='scale(1)';"
+              onmousedown="this.style.transform='scale(.88)'"
+              onmouseup="this.style.transform='scale(1)'"
+              onmouseover="this.style.background='rgba(240,192,48,.2)'"
+              onmouseout="this.style.background=antiGambitOn?'rgba(240,192,48,.2)':'rgba(240,192,48,.08)'">🛡</button>
+            <button onclick="newGame()" title="Nueva partida" style="
+              width:44px;height:44px;border-radius:50%;
+              border:1.5px solid rgba(216,80,80,.4);
+              background:rgba(216,80,80,.07);color:var(--red);
+              font-size:1.25rem;cursor:pointer;
+              display:flex;align-items:center;justify-content:center;
+              transition:all .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+              box-shadow:0 2px 8px rgba(0,0,0,.3);"
+              ontouchstart="this.style.transform='scale(.88)';this.style.background='rgba(216,80,80,.25)';"
+              ontouchend="this.style.transform='scale(1)';this.style.background='rgba(216,80,80,.07)';"
+              onmousedown="this.style.transform='scale(.88)'"
+              onmouseup="this.style.transform='scale(1)'"
+              onmouseover="this.style.background='rgba(216,80,80,.2)'"
+              onmouseout="this.style.background='rgba(216,80,80,.07)'">↺</button>
+        </div>
+        <!-- Opening indicator -->
+        <div id="opening-box" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid var(--bdr);">
+          <div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-start;">
+            <div style="flex:1">
+              <div style="font-family:'Josefin Sans',sans-serif;font-size:.58rem;letter-spacing:.1em;color:#f5ede0;text-transform:uppercase;margin-bottom:2px;">♔ BLANCAS</div>
+              <div id="opening-white" style="font-size:.82rem;font-weight:600;color:var(--txt);">—</div>
+            </div>
+            <div style="width:1px;background:var(--bdr);align-self:stretch;"></div>
+            <div style="flex:1">
+              <div style="font-family:'Josefin Sans',sans-serif;font-size:.58rem;letter-spacing:.1em;color:#180c04;text-shadow:0 0 0 #999;text-transform:uppercase;margin-bottom:2px;color:var(--dim);">♚ NEGRAS</div>
+              <div id="opening-black" style="font-size:.82rem;font-weight:600;color:var(--txt);">—</div>
+            </div>
           </div>
+          <div id="opening-tip" style="font-family:'Josefin Sans',sans-serif;font-size:.66rem;color:var(--dim);line-height:1.5;padding-top:6px;border-top:1px solid var(--bdr);"></div>
+        </div>
+        <!-- Anti-gambit indicator -->
+        <div id="antigambit-box" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid var(--bdr);">
+          <div style="font-family:'Josefin Sans',sans-serif;font-size:.6rem;letter-spacing:.1em;color:var(--ylw);text-transform:uppercase;margin-bottom:5px;">🛡 Modo Anti-gambito activo</div>
+          <div id="antigambit-tip" style="font-family:'Josefin Sans',sans-serif;font-size:.68rem;color:var(--dim);line-height:1.5;">Stockfish prioriza refutar el gambito rival.</div>
         </div>
       </div>
 
@@ -296,14 +398,14 @@ input[type=range]::-webkit-slider-thumb{
           <div class="elo-label">ELO</div>
           <div class="elo-val" id="elo-val">1500</div>
         </div>
-        <input type="range" id="elo-slider" min="600" max="3200" step="100" value="1500"
+        <input type="range" id="elo-slider" min="600" max="3600" step="100" value="1500"
           oninput="updateElo(this.value)"/>
         <div class="elo-ticks">
           <span class="elo-tick">600</span>
           <span class="elo-tick">Principiante</span>
           <span class="elo-tick" style="color:var(--gold)">1500</span>
           <span class="elo-tick">Maestro</span>
-          <span class="elo-tick">3200</span>
+          <span class="elo-tick">3600</span>
         </div>
       </div>
 
@@ -331,13 +433,6 @@ input[type=range]::-webkit-slider-thumb{
       <div class="card">
         <div class="ctitle">Historial</div>
         <div class="hist" id="hist"></div>
-      </div>
-
-      <!-- Buttons -->
-      <div style="display:flex;flex-direction:column;gap:7px;">
-        <button class="btn btn-g" id="btn-undo" onclick="undoMove()" disabled>↩ Deshacer</button>
-        <button class="btn btn-b" id="btn-rotate" onclick="rotateBoard()">⇅ Rotar tablero</button>
-        <button class="btn btn-r" onclick="newGame()">↺ Nueva partida</button>
       </div>
 
     </div>
@@ -516,34 +611,8 @@ function uciToMove(uci,b,turn,ep,castle){
 // ════════════════════════════════════════
 // STOCKFISH INTERFACE
 // ════════════════════════════════════════
-let sf=null, sfReady=false, sfElo=1500, sfWasmUrl=null;
+let sf=null, sfReady=false, sfElo=1500;
 let sfResolve=null, sfLines=[], sfThinking=false;
-
-function initStockfish(){
-  setEngineStatus('loading','Iniciando motor…');
-  try{
-    // STOCKFISH() returns the engine synchronously (workerObj)
-    // onmessage MUST be assigned in the same tick, before the engine's internal setTimeout(1ms) fires
-    sf = STOCKFISH(sfWasmUrl || undefined);
-
-    if(!sf || typeof sf.postMessage !== 'function'){
-      throw new Error('Invalid engine object');
-    }
-
-    // Assign IMMEDIATELY — same synchronous tick
-    sf.onmessage = handleSfMessage;
-    if(typeof sf.addMessageListener === 'function'){
-      sf.addMessageListener(handleSfMessage);
-    }
-
-    sf.postMessage('uci');
-
-  }catch(e){
-    console.error('SF init error:', e);
-    setEngineStatus('error','Error iniciando motor');
-    document.getElementById('btn-retry').style.display='block';
-  }
-}
 
 function sfSend(cmd){
   if(!sf)return;
@@ -551,48 +620,6 @@ function sfSend(cmd){
     if(typeof sf.postMessage==='function') sf.postMessage(cmd);
     else if(typeof sf.send==='function') sf.send(cmd);
   }catch(e){}
-}
-
-function handleSfMessage(event){
-  const line=typeof event==='string'?event:(event.data||'');
-  if(!line)return;
-
-  if(line.includes('uciok')){
-    sfSend('ucinewgame');
-    applyEloSettings();
-    sfSend('isready');
-    return;
-  }
-  if(line.includes('readyok')){
-    sfReady=true;
-    setEngineStatus('ready','Stockfish listo · ELO '+sfElo);
-    analyze();
-    return;
-  }
-
-  // Collect info lines (multipv)
-  if(line.startsWith('info')&&line.includes(' pv ')){
-    const scoreM=line.match(/score (cp|mate) (-?\d+)/);
-    const pvM=line.match(/ pv (.+)/);
-    const mpvM=line.match(/multipv (\d+)/);
-    if(pvM){
-      const idx=mpvM?parseInt(mpvM[1])-1:0;
-      const moves=pvM[1].trim().split(' ');
-      let scoreStr='';
-      if(scoreM){
-        if(scoreM[1]==='mate'){scoreStr='M'+scoreM[2];}
-        else{const cp=parseInt(scoreM[2]);scoreStr=(cp>=0?'+':'')+( cp/100).toFixed(2);}
-      }
-      sfLines[idx]={uci:moves[0],score:scoreStr,scoreRaw:scoreM?parseInt(scoreM[2]):0,scoreType:scoreM?scoreM[1]:'cp'};
-    }
-    return;
-  }
-
-  if(line.startsWith('bestmove')&&sfResolve){
-    const best=line.split(' ')[1];
-    const resolve=sfResolve;sfResolve=null;sfThinking=false;
-    resolve({best,lines:[...sfLines]});
-  }
 }
 
 function applyEloSettings(){
@@ -638,6 +665,7 @@ let halfmove=0,fullmove=1;
 let selected=null,lastMoves=[],bestMoves=[],gameOver=false,histLog=[];
 let undoStack=[],promoResolve=null,analysisToken=0;
 let boardFlipped=false;
+let moveHistoryUci=[];
 
 async function analyze(){
   if(gameOver||!sfReady)return;
@@ -647,7 +675,9 @@ async function analyze(){
 
   const fen=boardToFen(board,turn,castle,ep,halfmove,fullmove);
   // More time for higher ELO
-  const movetime=sfElo<1000?150:sfElo<1800?250:sfElo<2500?400:600;
+  const movetime = antiGambitOn
+    ? (sfElo<1000?150:sfElo<1800?300:sfElo<2500?500:800)
+    : (sfElo<1000?50:sfElo<1800?100:sfElo<2500?200:350);
   const{best,lines}=await askStockfish(fen,movetime);
   if(token!==analysisToken)return;
 
@@ -659,7 +689,7 @@ async function analyze(){
     const mv=uciToMove(line.uci,board,turn,ep,castle);
     if(!mv)continue;
     const san=toSAN(mv,board,turn,ep,castle,legal);
-    bestMoves.push({from:sq2alg(mv.from),to:sq2alg(mv.to),san,scoreStr:line.score,mv});
+    bestMoves.push({from:sq2alg(mv.from),to:sq2alg(mv.to),san,scoreStr:line.score,scoreRaw:line.scoreRaw||0,scoreType:line.scoreType||'cp',mv});
   }
 
   renderArrows();
@@ -682,9 +712,50 @@ function sqCenter(name){
 }
 function clearArrows(){document.getElementById('arrows').querySelectorAll('line').forEach(e=>e.remove());}
 
+function isBrilliant(moves){
+  if(moves.length < 2) return false;
+  const s0 = moves[0].scoreRaw || 0;
+  const s1 = moves[1].scoreRaw || 0;
+  const type0 = moves[0].scoreType || 'cp';
+  // Brillante si: diferencia > 200cp, o mate disponible solo en mov1, o sacrificio (cap con ganancia decisiva)
+  if(type0 === 'mate' && (moves[1].scoreType !== 'mate' || Math.abs(moves[1].scoreRaw) > Math.abs(s0) + 2)) return true;
+  if(type0 === 'cp' && s0 - s1 >= 200) return true;
+  return false;
+}
+
+function drawBrilliantArrow(svg, mv){
+  const from = sqCenter(mv.from), to = sqCenter(mv.to);
+  const dx = to.x - from.x, dy = to.y - from.y, len = Math.sqrt(dx*dx+dy*dy);
+  if(len < 2) return;
+  const trim = 18, ex = to.x - dx/len*trim, ey = to.y - dy/len*trim;
+  // Glow line
+  const glow = document.createElementNS('http://www.w3.org/2000/svg','line');
+  glow.setAttribute('x1', from.x.toFixed(1)); glow.setAttribute('y1', from.y.toFixed(1));
+  glow.setAttribute('x2', ex.toFixed(1)); glow.setAttribute('y2', ey.toFixed(1));
+  glow.setAttribute('stroke', '#df80ff'); glow.setAttribute('stroke-width', '9');
+  glow.setAttribute('stroke-linecap', 'round'); glow.setAttribute('opacity', '0.25');
+  glow.setAttribute('filter', 'url(#brilliantGlow)');
+  svg.appendChild(glow);
+  // Main line
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1', from.x.toFixed(1)); line.setAttribute('y1', from.y.toFixed(1));
+  line.setAttribute('x2', ex.toFixed(1)); line.setAttribute('y2', ey.toFixed(1));
+  line.setAttribute('stroke', '#df80ff'); line.setAttribute('stroke-width', '6');
+  line.setAttribute('stroke-linecap', 'round'); line.setAttribute('marker-end', 'url(#aBrilliant)');
+  line.setAttribute('opacity', '0.95');
+  svg.appendChild(line);
+  // ✨ emoji label at origin
+  const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+  txt.setAttribute('x', (from.x - 6).toFixed(1)); txt.setAttribute('y', (from.y + 6).toFixed(1));
+  txt.setAttribute('font-size', '18'); txt.setAttribute('text-anchor', 'middle');
+  txt.setAttribute('opacity', '0.95'); txt.textContent = '✨';
+  svg.appendChild(txt);
+}
+
 function renderArrows(){
   clearArrows();
   const svg=document.getElementById('arrows');
+  const brilliant = isBrilliant(bestMoves);
   bestMoves.slice(0,3).forEach((mv,i)=>{
     const from=sqCenter(mv.from),to=sqCenter(mv.to);
     const dx=to.x-from.x,dy=to.y-from.y,len=Math.sqrt(dx*dx+dy*dy);
@@ -698,6 +769,8 @@ function renderArrows(){
     line.setAttribute('opacity','0.82');
     svg.appendChild(line);
   });
+  // Dibujar flecha brillante encima si aplica
+  if(brilliant && bestMoves.length > 0) drawBrilliantArrow(svg, bestMoves[0]);
 }
 
 function renderBoard(){
@@ -712,7 +785,7 @@ function renderBoard(){
       const r=boardFlipped?row:7-row;
       const c=boardFlipped?7-col:col;
       const sq=r*16+c;
-      const isLight=(r+c)%2===0;
+      const isLight=(r+c)%2!==0;
       const p=board[sq];
       const div=document.createElement('div');
       let cls='sq '+(isLight?'l':'d');
@@ -740,9 +813,15 @@ function renderTurn(){
   document.getElementById('gem').className='gem '+(turn==='w'?'w':'b');
   document.getElementById('tname').textContent=gameOver?'Fin de la partida':turn==='w'?'BLANCAS':'NEGRAS';
   const sub=document.getElementById('tsub');
-  if(gameOver){sub.textContent='';return;}
-  if(inCheck(board,turn)){sub.textContent='⚠ Jaque';sub.style.color='var(--chk)';}
-  else{sub.textContent='Tu turno';sub.style.color='var(--dim)';}
+  const inl=document.getElementById('banner-inline');
+  if(gameOver){sub.textContent='';if(inl)inl.textContent='';return;}
+  if(inCheck(board,turn)){
+    sub.textContent='⚠ Jaque';sub.style.color='var(--chk)';
+    if(inl){inl.textContent='⚠ ¡JAQUE!';inl.style.color='var(--chk)';}
+  } else {
+    sub.textContent='Tu turno';sub.style.color='var(--dim)';
+    if(inl){inl.textContent='';} 
+  }
 }
 
 function renderBanner(){
@@ -796,7 +875,11 @@ function rotateBoard(){
 
 function renderAll(){
   renderBoard();renderTurn();renderBanner();renderHistory();
-  document.getElementById('btn-undo').disabled=undoStack.length===0;
+  const undoBtn=document.getElementById('btn-undo');
+  if(undoBtn){
+    undoBtn.disabled=undoStack.length===0;
+    undoBtn.style.opacity=undoStack.length===0?'0.35':'1';
+  }
 }
 
 // ════════════════════════════════════════
@@ -821,8 +904,12 @@ async function handleClick(sq){
 function doMove(mv,legal){
   const s=toSAN(mv,board,turn,ep,castle,legal);
   const result=applyMove(board,mv,castle,ep);
-  undoStack.push({board:[...board],turn,ep,castle:{...castle},histLog:histLog.map(e=>({...e})),lastMoves:[...lastMoves],halfmove,fullmove});
+  undoStack.push({board:[...board],turn,ep,castle:{...castle},histLog:histLog.map(e=>({...e})),lastMoves:[...lastMoves],halfmove,fullmove,moveHistoryUci:[...moveHistoryUci]});
   board=result.board;castle=result.castle;ep=result.ep;
+  // Track UCI move
+  const uci = mv.from.toString(16).padStart(2,'0');
+  const fromAlg = sq2alg(mv.from), toAlg = sq2alg(mv.to);
+  moveHistoryUci.push(fromAlg+toAlg+(mv.flags===4?({5:'q',4:'r',3:'b',2:'n'}[mv.promo>8?mv.promo-8:mv.promo]||''):''));
   lastMoves=[mv.from,mv.to];
   halfmove=(mv.cap||mv.piece===wP||mv.piece===bP)?0:halfmove+1;
   if(turn==='b')fullmove++;
@@ -832,7 +919,7 @@ function doMove(mv,legal){
   else if(histLog.length)histLog[histLog.length-1].b=s;
   const nextLegal=legalMoves(board,turn,ep,castle);
   if(!nextLegal.length)gameOver=inCheck(board,turn)?(prevTurn==='w'?'♔ Jaque Mate — Ganan BLANCAS':'♚ Jaque Mate — Ganan NEGRAS'):'½-½ Tablas por ahogado';
-  clearArrows();renderAll();
+  clearArrows();renderAll();updateOpeningDisplay();
   if(!gameOver){sfSend('ucinewgame');analyze();}
 }
 
@@ -856,8 +943,9 @@ function undoMove(){
   const prev=undoStack.pop();
   board=prev.board;turn=prev.turn;ep=prev.ep;castle=prev.castle;
   histLog=prev.histLog;lastMoves=prev.lastMoves;halfmove=prev.halfmove;fullmove=prev.fullmove;
+  moveHistoryUci=prev.moveHistoryUci||[];
   selected=null;bestMoves=[];gameOver=false;
-  clearArrows();renderAll();
+  clearArrows();renderAll();updateOpeningDisplay();
   sfSend('ucinewgame');analyze();
 }
 
@@ -865,78 +953,419 @@ function newGame(){
   board=initBoard();turn='w';ep=-1;castle={wK:true,wQ:true,bK:true,bQ:true};
   halfmove=0;fullmove=1;
   selected=null;lastMoves=[];bestMoves=[];gameOver=false;histLog=[];undoStack=[];
+  moveHistoryUci=[];
   clearArrows();
   document.getElementById('eval-fill').style.width='50%';
   document.getElementById('eval-num').textContent='—';
   sfSend('ucinewgame');
-  renderAll();analyze();
+  renderAll();updateOpeningDisplay();analyze();
 }
 
 // ════════════════════════════════════════
-// INIT
+// OPENING DETECTOR
 // ════════════════════════════════════════
+let openingOn = false;
+
+const OPENINGS = [
+  // === APERTURAS DE PEÓN DE REY (1.e4) ===
+  {m:'e2e4 e7e5 g1f3 b8c6 f1b5', n:'Apertura Española (Ruy López)', t:'Clásica y sólida. Blancas presionan e5. Responde con la Defensa Berlinesa (Nf6) o la Defensa Morphy (a6).'},
+  {m:'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1', n:'Ruy López — Variante Abierta', t:'Muy aguda. Blancas castean rápido. Prepárate para combate en el centro.'},
+  {m:'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5c6', n:'Ruy López — Variante de Cambio', t:'Blancas doblan peones negros. Usa tus peones dobles para control del centro.'},
+  {m:'e2e4 e7e5 g1f3 b8c6 f1c4', n:'Apertura Italiana', t:'Blancas apuntan a f7. Responde con Bc5 (Giuoco Piano) o Nf6 (Defensa de los dos caballos).'},
+  {m:'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5', n:'Giuoco Piano', t:'Posición equilibrada. Ambos desarrollan piezas. Considera c3 y d4 para el centro.'},
+  {m:'e2e4 e7e5 g1f3 b8c6 f1c4 g8f6', n:'Defensa de los Dos Caballos', t:'Agresiva para negras. Blancas pueden jugar Ng5 atacando f7. Prepara Nd4 o d5.'},
+  {m:'e2e4 e7e5 g1f3 b8c6 d2d4', n:'Apertura Escocesa', t:'Blancas buscan ventaja en el centro. Responde con exd4 y luego Bc5 o Nf6.'},
+  {m:'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4 f3d4', n:'Juego Escocés', t:'Centro abierto, juego táctico. Blancas tienen iniciativa. Usa Bc5 para contrarrestar.'},
+  {m:'e2e4 e7e5 f2f4', n:'Gambito del Rey', t:'Blancas sacrifican peón por ataque rápido. Acepta con exf4 o rechaza con d5 o Bc5.'},
+  {m:'e2e4 e7e5 f2f4 e5f4', n:'Gambito del Rey Aceptado', t:'Posición muy abierta y táctica. Blancas buscan ataque rápido. Juega d5 para contraatacar.'},
+  {m:'e2e4 e7e5 f2f4 f8c5', n:'Gambito del Rey Rechazado — Bc5', t:'Negras rechazan el gambito con contraataque. Sólida elección posicional.'},
+  {m:'e2e4 e7e5 b1c3', n:'Apertura Viena', t:'Desarrollo flexible para blancas. Pueden transicionar a Gambito Viena o posiciones más tranquilas.'},
+  {m:'e2e4 e7e5 b1c3 g8f6 f2f4', n:'Gambito Viena', t:'Agresivo. Blancas buscan dominar el centro. Responde con d5 para contrarrestar.'},
+  {m:'e2e4 e7e5 d2d4 e5d4', n:'Centro del Juego', t:'Blancas buscan control total del centro. Sigue el desarrollo natural con Nf6 y Bc5.'},
+  // === DEFENSA SICILIANA (1.e4 c5) ===
+  {m:'e2e4 c7c5', n:'Defensa Siciliana', t:'La defensa más popular contra 1.e4. Desequilibrada y rica en táctica. Muchas variantes posibles.'},
+  {m:'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 g7g6', n:'Siciliana — Dragón', t:'Negras desarrollan al alfil en g7. Muy aguda. Blancas suelen atacar en flanco de rey.'},
+  {m:'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 a7a6', n:'Siciliana — Najdorf', t:'La variante más estudiada. Negras preparan b5. Requiere mucho conocimiento teórico.'},
+  {m:'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4', n:'Siciliana — Clásica', t:'Sólida. Negras desarrollan el caballo a c6 presionando d4. Buena para principiantes.'},
+  {m:'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 a7a6', n:'Siciliana — Kan', t:'Flexible. Negras con a6 preparan b5. Evita variantes agudas del Najdorf.'},
+  {m:'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 g8f6 b1c3 d7d6', n:'Siciliana — Scheveningen', t:'Negras con estructura sólida e6+d6. Blancas suelen atacar con g4. Posición tensa.'},
+  {m:'e2e4 c7c5 b1c3', n:'Siciliana — Cerrada', t:'Blancas evitan la apertura del centro. Juego posicional. Negras tienen libertad de desarrollo.'},
+  {m:'e2e4 c7c5 c2c3', n:'Siciliana — Alapin', t:'Blancas preparan d4 sin ceder el centro. Sólida alternativa a las líneas teóricas del Najdorf.'},
+  // === DEFENSA FRANCESA (1.e4 e6) ===
+  {m:'e2e4 e7e6', n:'Defensa Francesa', t:'Sólida pero pasiva. Negras aceptan menos espacio por solidez. Contraataca con c5 o f6.'},
+  {m:'e2e4 e7e6 d2d4 d7d5 b1c3', n:'Francesa — Variante Winawer', t:'Negras juegan Bb4 para presionar c3. Muy táctica. Posición desequilibrada.'},
+  {m:'e2e4 e7e6 d2d4 d7d5 b1d2', n:'Francesa — Variante Tarrasch', t:'Blancas evitan el pin con Nc3. Más flexible pero menos ambiciosa.'},
+  {m:'e2e4 e7e6 d2d4 d7d5 e4e5', n:'Francesa — Ataque Avance', t:'Blancas ganan espacio con e5. Negras contraatacan con c5. Juego posicional cerrado.'},
+  {m:'e2e4 e7e6 d2d4 d7d5 e4d5', n:'Francesa — Variante de Cambio', t:'Simplificadora. Blancas cambian en d5 buscando tablas o ventaja técnica.'},
+  // === DEFENSA CARO-KANN (1.e4 c6) ===
+  {m:'e2e4 c7c6', n:'Defensa Caro-Kann', t:'Sólida y menos pasiva que la Francesa. Negras preparan d5 sin bloquear al alfil de c8.'},
+  {m:'e2e4 c7c6 d2d4 d7d5 b1c3', n:'Caro-Kann — Variante Clásica', t:'Negras responden con dxe4. Estructura sólida para las negras con buen juego a largo plazo.'},
+  {m:'e2e4 c7c6 d2d4 d7d5 e4e5', n:'Caro-Kann — Ataque Avance', t:'Blancas ganan espacio. Negras contraatacan con Bf5 y c5. Similar a la Francesa Avance.'},
+  {m:'e2e4 c7c6 d2d4 d7d5 e4d5 c6d5', n:'Caro-Kann — Variante Panov', t:'Blancas buscan juego de peón de dama activo. Muy posicional.'},
+  // === APERTURA DE PEÓN DE DAMA (1.d4) ===
+  {m:'d2d4 d7d5 c2c4', n:'Gambito de Dama', t:'Blancas ofrecen el peón de c4 por control del centro. Acepta o rechaza con e6 (QGD) o c6 (Slav).'},
+  {m:'d2d4 d7d5 c2c4 d5c4', n:'Gambito de Dama Aceptado', t:'Negras toman el peón pero pierden control del centro. Blancas recuperan con e3 y Bxc4.'},
+  {m:'d2d4 d7d5 c2c4 e7e6', n:'Gambito de Dama Rechazado', t:'Sólido y clásico. Negras mantienen el centro con e6. Muy popular a nivel profesional.'},
+  {m:'d2d4 d7d5 c2c4 c7c6', n:'Defensa Eslava', t:'Muy sólida. Negras defienden d5 con c6 sin bloquear al alfil de c8. Popular en alto nivel.'},
+  {m:'d2d4 d7d5 c2c4 c7c6 g1f3 g8f6 b1c3 e7e6', n:'Defensa Semi-Eslava', t:'Combina elementos de QGD y Eslava. Muy teórica. Gambit Merano y Marshall son variantes principales.'},
+  {m:'d2d4 g8f6 c2c4 e7e6 b1c3 f8b4', n:'Defensa Nimzo-Indiana', t:'Negras pinchan al caballo con Bb4. Una de las mejores defensas contra 1.d4. Muy sólida.'},
+  {m:'d2d4 g8f6 c2c4 e7e6 g1f3 d7d5', n:'QGD — Variante Ortodoxa', t:'Clásica y sólida. Negras con d5 y e6. Posición posicional y equilibrada.'},
+  {m:'d2d4 g8f6 c2c4 g7g6', n:'Defensa King\'s Indian', t:'Muy aguda y dinámica. Negras contraatacan en el flanco de rey. Favorita de Fischer y Kasparov.'},
+  {m:'d2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6', n:'Defensa India del Rey — Clásica', t:'Negras construyen contrajuego con e5 o c5. Muy combativa y desequilibrada.'},
+  {m:'d2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6 g1f3 e8g8 f1e2 e7e5', n:'India del Rey — Variante Clásica', t:'Negras juegan e5 para contrarrestar. Blancas tienen más espacio. Juego de dos resultados.'},
+  {m:'d2d4 g8f6 c2c4 c7c5', n:'Defensa Benoni', t:'Agresiva. Negras crean tensión inmediata. Blancas tienen más espacio pero negras tienen contrajuego dinámico.'},
+  {m:'d2d4 g8f6 c2c4 e7e6 g1f3 b7b6', n:'Defensa India de Dama', t:'Flexible y sólida. Negras desarrollan con b6 y Bb7. Controlan e4 de forma indirecta.'},
+  {m:'d2d4 f7f5', n:'Defensa Holandesa', t:'Agresiva. Negras buscan ataque en el flanco de rey. Débil en e6. Variantes: Stonewall, Leningrad.'},
+  {m:'d2d4 g8f6 g1f3 g7g6', n:'Defensa Gruenfeld', t:'Negras permiten centro blanco para destruirlo después. Muy teórica. Favorita de Kasparov.'},
+  {m:'d2d4 g8f6 g1f3 g7g6 c2c4 f8g7 b1c3 d7d5', n:'Defensa Grünfeld', t:'Negras atacan el centro con d5. Posición muy dinámica. Blancas deben mantener el centro.'},
+  // === APERTURAS INGLESA Y OTRAS (1.c4) ===
+  {m:'c2c4', n:'Apertura Inglesa', t:'Flexible y posicional. Blancas controlan d5 sin peón en el centro. Muchas transposiciones posibles.'},
+  {m:'c2c4 e7e5', n:'Inglesa — Defensa Simétrica invertida', t:'Negras replican con e5. Posición rica con muchas transposiciones a otras aperturas.'},
+  {m:'c2c4 c7c5', n:'Inglesa — Variante Simétrica', t:'Simétrica y posicional. Ambos controlan el centro con peones de c. Juego posicional a largo plazo.'},
+  {m:'c2c4 g8f6 b1c3 d7d5', n:'Inglesa — Defensa India', t:'Negras responden con Nf6 y d5. Transposición posible a QGD o posiciones independientes.'},
+  // === REPERTORIO DE FLANCO ===
+  {m:'g1f3', n:'Apertura Reti', t:'Flexible e hipermoderana. Blancas desarrollan sin revelar su plan. Muchas transposiciones.'},
+  {m:'g1f3 d7d5 c2c4', n:'Apertura Reti — Variante principal', t:'Blancas buscan presionar d5 desde el flanco. Posicional y moderno.'},
+  {m:'g2g3', n:'Apertura Benko', t:'Fianchetto de alfil. Blancas buscan control de largo plazo. Flexible y moderna.'},
+  {m:'b2b3', n:'Apertura Larsen', t:'Excéntrica pero efectiva. Blancas preparan Bb2 con presión en e5. Usada por Nimzowitsch y Larsen.'},
+  {m:'b2b4', n:'Gambito Sokolsky (Orangután)', t:'Inusual. Blancas sacrifican b4 por desarrollo rápido y control de c5. Sorprendente a nivel amateur.'},
+  {m:'f2f4', n:'Ataque Bird', t:'Blancas controlan e5 desde f4. Puede transicionar a From\'s Gambit si negras juegan e5.'},
+  {m:'f2f4 e7e5', n:'From\'s Gambit', t:'Negras contraatacan con e5. Muy agudo. Blancas deben conocer bien las líneas para no perder rápido.'},
+  // === APERTURAS IRREGULARES ===
+  {m:'e2e4 d7d5', n:'Defensa Escandinava', t:'Negras desafían el centro inmediatamente. Después de exd5, Qxd5 o Nf6. Sólida pero pasiva.'},
+  {m:'e2e4 d7d5 e4d5 d8d5 b1c3', n:'Escandinava — Variante Moderna', t:'Negras con Qd6 o Qa5. Sólida pero la dama queda expuesta. Requiere juego preciso.'},
+  {m:'e2e4 g8f6', n:'Defensa Alekhine', t:'Negras provocan el avance de peones blancos para destruirlo después. Poco ortodoxa pero efectiva.'},
+  {m:'e2e4 g7g6', n:'Defensa Moderna', t:'Flexible. Negras con g6 y Bg7 esperan el momento para contraatacar el centro.'},
+  {m:'e2e4 g7g6 d2d4 f8g7 b1c3 d7d6', n:'Defensa Pirc', t:'Negras dejan que blancas construyan el centro para atacarlo después. Similar a la India del Rey.'},
+  {m:'e2e4 b7b6', n:'Defensa Owen', t:'Inusual. Negras preparan Bb7 con presión en e4. Poco común pero sorprendente.'},
+  {m:'e2e4 a7a6', n:'Defensa St. George', t:'Muy pasiva. Negras con a6 no tienen plan claro. Poco recomendable salvo sorpresa.'},
+  {m:'e2e4 f7f5', n:'Gambito Duras', t:'Muy arriesgado para las negras. Debilita al rey negro. Blancas responden exf5 o e5.'},
+  {m:'d2d4 d7d5 b1c3', n:'Chigorin Defense', t:'Negras con Nc6 y e5 contraatacan el centro. Poco ortodoxa pero activa.'},
+  {m:'e2e4 e7e5 g1f3 g8f6', n:'Juego Petrov (Defensa Rusa)', t:'Muy sólida y aburrida para blancas. Negras igualan fácilmente. Favorita para hacer tablas.'},
+  {m:'e2e4 e7e5 g1f3 d7d6', n:'Defensa Philidor', t:'Sólida pero pasiva. Negras defienden e5 con d6. Poco activa comparada con otras opciones.'},
+  {m:'e2e4 e7e5 g1f3 f7f5', n:'Gambito Letón', t:'Muy agresivo y arriesgado para negras. Blancas responden Nxe5 o d4. Poco recomendable a alto nivel.'},
+  {m:'d2d4 e7e5', n:'Gambito Budapest', t:'Negras sacrifican un peón por desarrollo rápido. Sorprendente. Blancas deben devolver el peón o enfrentar contrajuego.'},
+  {m:'d2d4 g8f6 b1c3', n:'Trompowsky Attack', t:'Blancas apuntan al caballo con Bg5. Evita teoría estándar. Bueno para sorprender.'},
+  {m:'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 b8c6', n:'Siciliana — Variante Inglesa', t:'Negras desarrollan con Nc6. Sólida transición a la Siciliana clásica.'},
+  {m:'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 b8c6 b1c3 d8c7', n:'Siciliana — Taimanov', t:'Negras con Qc7 preparan a6 y b5. Flexible y sólida. Evita el Najdorf.'},
+];
+
+const TIPS_DEFAULT = {
+  'e4': 'Responde con e5 (apertura abierta) o c5 (Siciliana) para juego dinámico.',
+  'd4': 'Responde con d5 (posicional) o Nf6 (India) para flexibilidad.',
+  'c4': 'La Inglesa. Responde con e5 o Nf6 para juego equilibrado.',
+  'Nf3': 'Apertura Reti flexible. Espera antes de comprometerte.',
+};
+
+function movesToKey(moves){
+  // Convierte historial a clave de comparación: "e2e4 e7e5 g1f3..."
+  const result = [];
+  for(const entry of moves){
+    if(entry.w) result.push(sanToUci(entry.w) || entry.w);
+    if(entry.b) result.push(sanToUci(entry.b) || entry.b);
+  }
+  return result.join(' ');
+}
+
+function sanToUci(san){
+  // Simple SAN→UCI para búsqueda en la base de datos
+  // Usamos lastMoves del historial en formato UCI directamente
+  return null;
+}
+
+function detectOpening(){
+  if(!histLog.length) return {name:'Inicio de partida', tip:'Mueve el peón central o desarrolla un caballo para comenzar.'};
+
+  // Reconstruir secuencia UCI desde undoStack + estado actual
+  const uciMoves = [];
+  // Accedemos a histLog directamente que tiene SAN
+  // Mejor: reconstruir desde el historial de movimientos UCI que guardamos
+  const key = moveHistoryUci.join(' ');
+
+  // Buscar coincidencia más larga en la base de datos
+  let best = null;
+  let bestLen = 0;
+  for(const op of OPENINGS){
+    if(key.startsWith(op.m) && op.m.length > bestLen){
+      best = op;
+      bestLen = op.m.length;
+    }
+  }
+  if(best) return {name: best.n, tip: best.t};
+
+  // Si no hay coincidencia exacta, dar tip genérico según primer movimiento
+  const first = moveHistoryUci[0] || '';
+  if(first === 'e2e4') return {name:'Apertura de Peón de Rey (1.e4)', tip: TIPS_DEFAULT['e4']};
+  if(first === 'd2d4') return {name:'Apertura de Peón de Dama (1.d4)', tip: TIPS_DEFAULT['d4']};
+  if(first === 'c2c4') return {name:'Apertura Inglesa (1.c4)', tip: TIPS_DEFAULT['c4']};
+  if(first === 'g1f3') return {name:'Apertura Reti (1.Nf3)', tip: TIPS_DEFAULT['Nf3']};
+
+  return {name:'Apertura no catalogada', tip:'Continúa con desarrollo natural: caballos y alfiles primero.'};
+}
+
+function toggleOpening(){
+  openingOn = !openingOn;
+  const btn = document.getElementById('btn-opening');
+  const box = document.getElementById('opening-box');
+  if(openingOn){
+    btn.style.background = 'rgba(77,222,114,.2)';
+    btn.style.borderColor = 'rgba(77,222,114,.8)';
+    box.style.display = 'block';
+    updateOpeningDisplay();
+  } else {
+    btn.style.background = 'rgba(77,222,114,.08)';
+    btn.style.borderColor = 'rgba(77,222,114,.4)';
+    box.style.display = 'none';
+  }
+}
+
+let antiGambitOn = false;
+
+function toggleAntiGambit(){
+  antiGambitOn = !antiGambitOn;
+  const btn = document.getElementById('btn-antigambit');
+  const box = document.getElementById('antigambit-box');
+  if(antiGambitOn){
+    btn.style.background = 'rgba(240,192,48,.2)';
+    btn.style.borderColor = 'rgba(240,192,48,.8)';
+    box.style.display = 'block';
+    updateAntiGambitTip();
+    analyze();
+  } else {
+    btn.style.background = 'rgba(240,192,48,.08)';
+    btn.style.borderColor = 'rgba(240,192,48,.4)';
+    box.style.display = 'none';
+    analyze();
+  }
+}
+
+function updateAntiGambitTip(){
+  const result = detectOpening();
+  const tip = document.getElementById('antigambit-tip');
+  if(!tip) return;
+  // Detectar si hay gambito del rival
+  const rivalColor = turn === 'w' ? 'negras' : 'blancas';
+  const rivalOpening = turn === 'w' ? detectOpeningFor('b') : detectOpeningFor('w');
+  if(rivalOpening && rivalOpening.name.toLowerCase().includes('gambito')){
+    tip.textContent = `Contra ${rivalOpening.name}: ${rivalOpening.t}`;
+    tip.style.color = 'var(--ylw)';
+  } else {
+    tip.textContent = 'No se detecta gambito activo del rival. Stockfish juega normalmente con énfasis en solidez.';
+    tip.style.color = 'var(--dim)';
+  }
+}
+
+function detectOpeningFor(color){
+  // Detectar apertura para un color específico basado en movimientos hasta ahora
+  const key = moveHistoryUci.join(' ');
+  let best = null, bestLen = 0;
+  for(const op of OPENINGS){
+    if(key.startsWith(op.m) && op.m.length > bestLen){
+      best = op; bestLen = op.m.length;
+    }
+  }
+  return best;
+}
+
+function updateOpeningDisplay(){
+  if(!openingOn) return;
+  const key = moveHistoryUci.join(' ');
+
+  // Detectar apertura completa
+  let best = null, bestLen = 0;
+  for(const op of OPENINGS){
+    if(key.startsWith(op.m) && op.m.length > bestLen){
+      best = op; bestLen = op.m.length;
+    }
+  }
+
+  // Separar por color: movimientos pares = blancas, impares = negras
+  const wMoves = moveHistoryUci.filter((_,i) => i%2===0).join(' ');
+  const bMoves = moveHistoryUci.filter((_,i) => i%2===1).join(' ');
+
+  // Nombre para blancas (basado en primer movimiento)
+  let wName = '—', bName = '—';
+  if(moveHistoryUci.length >= 1){
+    const first = moveHistoryUci[0];
+    if(first==='e2e4') wName = '1.e4 — Peón de Rey';
+    else if(first==='d2d4') wName = '1.d4 — Peón de Dama';
+    else if(first==='c2c4') wName = '1.c4 — Inglesa';
+    else if(first==='g1f3') wName = '1.Nf3 — Reti';
+    else if(first==='f2f4') wName = '1.f4 — Bird';
+    else if(first==='b2b4') wName = '1.b4 — Orangután';
+    else wName = '1.' + first;
+  }
+  if(moveHistoryUci.length >= 2){
+    const second = moveHistoryUci[1];
+    const first = moveHistoryUci[0];
+    if(first==='e2e4'){
+      if(second==='e7e5') bName = '1...e5 — Apertura Abierta';
+      else if(second==='c7c5') bName = '1...c5 — Siciliana';
+      else if(second==='e7e6') bName = '1...e6 — Francesa';
+      else if(second==='c7c6') bName = '1...c6 — Caro-Kann';
+      else if(second==='d7d5') bName = '1...d5 — Escandinava';
+      else if(second==='g8f6') bName = '1...Nf6 — Alekhine';
+      else if(second==='g7g6') bName = '1...g6 — Moderna/Pirc';
+      else bName = '1...' + second;
+    } else if(first==='d2d4'){
+      if(second==='d7d5') bName = '1...d5 — Defensa Peón Dama';
+      else if(second==='g8f6') bName = '1...Nf6 — India';
+      else if(second==='f7f5') bName = '1...f5 — Holandesa';
+      else if(second==='e7e6') bName = '1...e6';
+      else bName = '1...' + second;
+    } else {
+      bName = '1...' + second;
+    }
+  }
+
+  // Si hay apertura reconocida, refinar nombres
+  if(best){
+    // La apertura reconocida aplica a ambos colores
+    const isGambit = best.n.toLowerCase().includes('gambito') || best.n.toLowerCase().includes('gambit');
+    if(moveHistoryUci.length <= best.m.split(' ').length){
+      if(isGambit){
+        wName = '♗ ' + best.n;
+        bName = best.t.split('.')[0] + '.';
+      } else {
+        wName = best.n;
+      }
+    }
+  }
+
+  document.getElementById('opening-white').textContent = wName;
+  document.getElementById('opening-black').textContent = bName;
+
+  const tip = document.getElementById('opening-tip');
+  if(best) tip.textContent = best.t;
+  else if(moveHistoryUci.length === 0) tip.textContent = 'Mueve para detectar la apertura.';
+  else tip.textContent = 'Continúa jugando para identificar la línea exacta.';
+
+  if(antiGambitOn) updateAntiGambitTip();
+}
 renderCoords();
 renderAll();
 
-// CDN list to try in order
-const SF_CDNS = [
-  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js',  wasm: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.wasm' },
-  { js: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.js',             wasm: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.wasm' },
-  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js',  wasm: null },
-  { js: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js', wasm: null },
-];
+// ════════════════════════════════════════
+// STOCKFISH LOADER
+// ════════════════════════════════════════
 let sfCdnIdx = 0;
 
-function loadStockfishScript(url){
-  return new Promise((resolve,reject)=>{
-    // Remove any previous script
-    const old=document.getElementById('sf-script');
-    if(old)old.remove();
-    const s=document.createElement('script');
-    s.id='sf-script';
-    s.src=url;
-    s.onload=()=>resolve();
-    s.onerror=()=>reject(new Error('Failed: '+url));
+// SF16+ Worker URLs (work locally and on GitHub Pages, not on Claude)
+const SF_WORKERS = [
+  'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish-16-lite-single.js',
+  'https://unpkg.com/stockfish@16.0.0/src/stockfish-16-lite-single.js',
+];
+
+// SF11 Script fallback (works everywhere including Claude)
+const SF_SCRIPTS = [
+  { js: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.js', wasm: 'https://cdn.jsdelivr.net/npm/stockfish@11.0.0/src/stockfish.wasm' },
+  { js: 'https://unpkg.com/stockfish@11.0.0/src/stockfish.js', wasm: null },
+  { js: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js', wasm: null },
+];
+
+function handleSfMsg(event){
+  const line = typeof event === 'string' ? event : (event.data || '');
+  if(!line) return;
+  if(line.includes('uciok')){ applyEloSettings(); sfSend('isready'); return; }
+  if(line.includes('readyok')){
+    sfReady = true;
+    setEngineStatus('ready', 'Stockfish listo · ELO ' + sfElo);
+    analyze();
+    return;
+  }
+  if(line.startsWith('info') && line.includes(' pv ')){
+    const scoreM = line.match(/score (cp|mate) (-?\d+)/);
+    const pvM = line.match(/ pv (.+)/);
+    const mpvM = line.match(/multipv (\d+)/);
+    if(pvM){
+      const idx = mpvM ? parseInt(mpvM[1]) - 1 : 0;
+      const moves = pvM[1].trim().split(' ');
+      let scoreStr = '';
+      if(scoreM){
+        if(scoreM[1] === 'mate') scoreStr = 'M' + scoreM[2];
+        else { const cp = parseInt(scoreM[2]); scoreStr = (cp >= 0 ? '+' : '') + (cp / 100).toFixed(2); }
+      }
+      sfLines[idx] = { uci: moves[0], score: scoreStr, scoreRaw: scoreM ? parseInt(scoreM[2]) : 0, scoreType: scoreM ? scoreM[1] : 'cp' };
+    }
+    return;
+  }
+  if(line.startsWith('bestmove') && sfResolve){
+    const resolve = sfResolve; sfResolve = null; sfThinking = false;
+    resolve({ best: line.split(' ')[1], lines: [...sfLines] });
+  }
+}
+
+async function tryWorker(url){
+  return new Promise((res, rej) => {
+    const w = new Worker(url);
+    const t = setTimeout(() => { w.terminate(); rej(new Error('timeout')); }, 6000);
+    w.onerror = e => { clearTimeout(t); w.terminate(); rej(e); };
+    w.onmessage = e => {
+      if((e.data || '').includes('uciok')){ clearTimeout(t); res(w); }
+    };
+    w.postMessage('uci');
+  });
+}
+
+function loadScript(url){
+  return new Promise((res, rej) => {
+    const old = document.getElementById('sf-script'); if(old) old.remove();
+    const s = document.createElement('script');
+    s.id = 'sf-script'; s.src = url;
+    s.onload = res; s.onerror = () => rej(new Error('load fail'));
     document.head.appendChild(s);
   });
 }
 
 async function tryLoadStockfish(){
-  setEngineStatus('loading','Cargando Stockfish…');
-  document.getElementById('btn-retry').style.display='none';
+  setEngineStatus('loading', 'Cargando Stockfish 16…');
+  document.getElementById('btn-retry').style.display = 'none';
 
-  for(let i=sfCdnIdx;i<SF_CDNS.length;i++){
-    const cdn=SF_CDNS[i];
+  // Try SF16 Worker first (local / GitHub Pages)
+  for(const url of SF_WORKERS){
     try{
-      setEngineStatus('loading','Cargando motor ('+(i+1)+'/'+SF_CDNS.length+')…');
-      await loadStockfishScript(cdn.js);
-      await new Promise(r=>setTimeout(r,300));
-      if(typeof STOCKFISH==='function'){
-        sfCdnIdx=i;
-        sfWasmUrl=cdn.wasm;
-        initStockfish();
-        return;
-      }
-    }catch(e){}
+      setEngineStatus('loading', 'Intentando SF16…');
+      const worker = await tryWorker(url);
+      sf = worker;
+      sf.onmessage = handleSfMsg;
+      applyEloSettings();
+      sfSend('isready');
+      setEngineStatus('loading', 'SF16 listo, iniciando…');
+      return;
+    }catch(e){ console.warn('SF16 Worker failed:', e.message); }
   }
 
-  // All CDNs failed
-  setEngineStatus('error','Sin conexión a internet');
-  document.getElementById('etxt').textContent='No se pudo cargar Stockfish';
-  document.getElementById('btn-retry').style.display='block';
-  document.getElementById('analysis').innerHTML=`
+  // Fallback: SF11 via script tag
+  for(const cdn of SF_SCRIPTS){
+    try{
+      setEngineStatus('loading', 'Cargando SF11…');
+      await loadScript(cdn.js);
+      await new Promise(r => setTimeout(r, 400));
+      if(typeof STOCKFISH !== 'function') continue;
+      sf = STOCKFISH(cdn.wasm || undefined);
+      if(!sf || typeof sf.postMessage !== 'function') continue;
+      sf.onmessage = handleSfMsg;
+      if(typeof sf.addMessageListener === 'function') sf.addMessageListener(handleSfMsg);
+      sf.postMessage('uci');
+      // Timeout check
+      setTimeout(() => {
+        if(!sfReady){ console.warn('SF11 timeout'); sfCdnIdx++; tryLoadStockfish(); }
+      }, 6000);
+      return;
+    }catch(e){ console.warn('SF11 failed:', e.message); }
+  }
+
+  setEngineStatus('error', 'Sin motor disponible');
+  document.getElementById('btn-retry').style.display = 'block';
+  document.getElementById('analysis').innerHTML = `
     <div style="color:var(--dim);font-size:.82rem;line-height:1.6;margin-top:4px;">
-      Stockfish requiere internet.<br>
+      No se pudo cargar Stockfish.<br>
       Verifica tu conexión y pulsa <b style="color:var(--gold2)">↻ Reintentar</b>.
     </div>`;
 }
 
-function retryLoad(){
-  sfCdnIdx=0;
-  tryLoadStockfish();
-}
-
-window.addEventListener('load',()=>setTimeout(tryLoadStockfish,100));
+function retryLoad(){ tryLoadStockfish(); }
+window.addEventListener('load', () => setTimeout(tryLoadStockfish, 100));
 </script>
 </body>
 </html>
